@@ -1,0 +1,41 @@
+B = Bug
+PF = Proposed Fix
+
+B: RandomLoadout needs a visual update fix, loadouts don't update for those without the mods. (Reported by Siopilos)
+PF: Add update func for non-modded in AddUtil
+
+B: Orb effects (Elementals) do not work when you are inside Wiza Barrier / Valkyrie Shield Pot, or when you break orbs using immune abilities (Thor Murder, Valkyrie AoE weapon, or dash on orbs). (Reported by Siopilos) 
+PF: Change effects to ignore i-frames by applying instead of effecting.
+
+B: Pots cooldown + RandomLoadout do not display cooldown visuals correctly. (Reported by Siopilos)
+PF: N/A
+
+B: TheLaziestHero (ID‑NT) v1.2 curse (reverse lazy mod) needs fixes because players can still use items at certain points. (Reported by Siopilos) 
+PF: N/A
+
+B: ChaosMode casters on caves ratio is off. (Reported by Siopilos)
+PF: Fix rate math for caves, something breaks it.
+
+B: A double crown bug happens only when the player has the crown and drops it by knocking back. (Reported by Siopilos)
+PF: Round crown math down instead of up.
+
+B: RandomHero mod needs bug fixes, needs to conserve potion amounts between levels for player, which is the only known bug at this time. (Reported by Mitch)
+PF: Unreleased mod. Needs to preserve amounts in vars for player.
+
+B: No ghost mod + Alliance mod does have ghosts in game. (Reported by Siopilos)
+PF: N/A
+
+B: Alliance need optimization, needs to limited eye/spider/liches bosses per floor. (Reported by Siopilos)
+PF: Add limits like with Orox. Make table with limit nums?
+
+B: DeadMansHand does not always gives end screen when all dies. (this happens when restart in-game, even leave lobby and create an new lobby does not fix this, restart game.exe make the fix) (Reported by Siopilos)
+PF: N/A
+
+B: Wiz goldpot sometimes crashes the game for the host when he use the pot. (Reported by Siopilos) 
+PF: N/A (Maybe not my mod that's the issue)
+
+B: Knossos when is above large sometimes (rare) gives you dead end. (Reported by Siopilos)
+PF: N/A
+
+B: Skull Homing missles from cave casters are stuck and not disappearing on Valk shield pot. (Reported by Siopilos)
+PF: Auto-kill when velocity goes under ~1?
