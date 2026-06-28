@@ -1,0 +1,5 @@
+Trials Modding
+Important Note: Trials mods are NOT categorized into Clientside, Local, or Serverside mods. They are curated for Gauntlet Trials (created in the Gauntlet Official™ Discord server: https://discord.com/invite/EkN5zA8U) as a way to apply the rules of the challenges. 
+
+For example: DeadMansHand works as a Serverside mod, while TheLaziestHero works as a Local Mod. These mods are used at the discretion of the Trials players- though there will likely be documentation on them to indicate their usage. 
+

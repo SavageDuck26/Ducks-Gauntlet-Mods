@@ -1,0 +1,5 @@
+Local Modding
+Local Mods are relatively simple: they only affect the player using them, but will cause no conflict between players. 
+
+For example: the mod NoCameraShake disables the shaking effects on a player's screen, and this does not extend to other players.
+
