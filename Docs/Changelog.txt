@@ -1,0 +1,51 @@
+
+1.2.0 Update:
+All mods in my modpack have been sorted into folders according to new categorizations. You can read more about this on my free [Patreon](https://www.patreon.com/cw/SavageDuck26) (which will always remain free).
+-Clientside Mods: These mods only work if all players are using them with identical settings. Otherwise: players without the mods and settings will likely crash when joining a Clientside modded game.
+
+-Local Mods: These mods only affect your own game, not others.
+
+-Serverside Mods: These mods affect all players as long you are the host. (These mods can have effects in them that are Local only as well)
+
+-Trials Mods: These mods are for Gauntlet Trials, created in the main Gauntlet Official™ Discord server.
+
+Alliances: updated to only allow one Orox boss per floor. Fixed an issue with Khamun not functioning in campaign mode
+
+Knossos: Now has a UI. There are now Small-Labyrinth sizes and an enable/disable button. (Make sure to use the same settings as all other players)
+
+SetSeedEndless: Added this mod to the pack, it sets the random endless layouts to be the same as it's floor number (Same layout every time). (Requested by SealsOMG)
+
+FragileHeroes: Added this mod to the pack, it causes your character to die immediately from any source of damage. (Requested by Lein)
+
+EnduranceMode: Creates a new gamemode under "Start Game" in the main menu. It is and endless adjacent gamemode that randomizes every floor instead of following the pattern of 6 floors per environment.
+
+Summoners: I'm still trying to fix the Cultist Armor invisibility bug, otherwise this mod works fully.
+
+Other: Many other mods were updated with minor changes that did not make the list above. The FPS mod is in early stages of development, I may or may not continue to focus on it or onto a mod that randomizes your character every level. 
+
+Thank you to all of my testers as well, these updates wouldn't be possible without y'all. Thanks to everyone for playing and requesting new mods.
+
+1.3.0 Update:
+New Mods:
+(FOR TRIALS) Peacemonger: Displays a message and puts a message into chat whenever more than one kill is acquired in a level, which indicates a failure of the Trial.
+
+Changes:
+RandomLoadout had the Golden Feather removed from the random pool.
+ChaosMode's spawning system has changed to be more consistent across all modes, all culling has been removed and a performance mod will take its' place.
+Added DucksUI menu button to the lobby to change settings from there instead of only from the main menu.
+Adding new handling for DucksUI auto-save to hopefully fix any present saving issues on some hardware.
+Changed DeadMansHand UI to display "0" instead of "!" for Skullcoin count.
+AddUtility got a Performance mod added to it. It has a UI. Not all settings may work as a lot of it is intwined with the engine, but it does seem to help with performance.
+Added DialogueFrequency control to DucksUI. (Requested by t1optimus)
+
+Fixes:
+Fixed ChaosMode enemy spawn rates (specifically caster/magic enemies). (Reported by Siopilos)
+Fixed AnyColosseum day cycling through colosseums to be all 18 instead of only 6 of the levels. (Reported by SealsOMG)
+Fixed Orox Boss for Alliances (Removed invincibility) and fixed his behavior in the campaign level. (Reported by Siopilos)
+Fixed Confusion not applying for non-host players on GraveTrappers (For real this time :p) if they have the mod on. (Reported by Siopilos)
+Fixed StrongerEnemies crash where there was no safety check for Eye Boss being alive before executing an ability. (Reported by Mitch)
+Fixed DeadMansHand game ending when all players are dead. (Reported by Siopilos)
+Fixed an issue with MoreCrowns counting logic. (Reported by Siopilos)
+
+Other:
+Beautified ducks_ui_mod_settings.json export for ease of editing purposes.
