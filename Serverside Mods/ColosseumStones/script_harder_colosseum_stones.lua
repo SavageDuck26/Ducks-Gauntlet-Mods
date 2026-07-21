@@ -1,7 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Replace normal spawners with colosseum stone spawners
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Replace colosseum spawners with harder ones"
+
 
 local MOD_NAME = "HarderColosseumStones"
 

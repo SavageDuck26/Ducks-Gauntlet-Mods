@@ -1,11 +1,10 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.1
--- Purpose: Make skullcoin gain 4x harder to earn.
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.1.0"
+local MOD_DESCRIPTION = "Make skullcoin gain 4x harder to earn."
 
 local MOD_NAME = "SkullcoinScarcity"
-print("[" .. MOD_NAME .. "] Skullcoin stock goes down down down!")
+-- print("[" .. MOD_NAME .. "] Skullcoin stock goes down down down!")
 
 Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     local result = orig(path, ...)

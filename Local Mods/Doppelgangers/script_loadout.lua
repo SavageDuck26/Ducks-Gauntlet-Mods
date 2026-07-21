@@ -1,7 +1,6 @@
--- =================================================================================================
--- Author: SavageDuck26, Skapp
--- Purpose: Avatar loadout hooks for Doppelgangers mod
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26/Skapp"
+local MOD_DESCRIPTION = "Avatar loadout hooks for Doppelgangers mod"
 
 local MOD_NAME = "DoppelLoudout"
 

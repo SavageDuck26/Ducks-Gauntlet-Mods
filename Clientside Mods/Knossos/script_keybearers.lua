@@ -1,3 +1,8 @@
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Adds enemies that drop keys to avoid softlocks in endless"
+
+
 local MOD_NAME = "KnossosKeybearers"
 local KEY_UNIT_PATH = "gameobjects/keys/small"
 

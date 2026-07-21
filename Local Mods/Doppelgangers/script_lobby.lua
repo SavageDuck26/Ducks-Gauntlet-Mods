@@ -1,7 +1,8 @@
--- =================================================================================================
--- Author: SavageDuck26, Skapp
--- Purpose: Team preview/lobby hooks for Doppelgangers mod
--- =================================================================================================
+
+
+local MOD_AUTHOR = "SavageDuck26/Skapp"
+local MOD_DESCRIPTION = "Team preview/lobby hooks for Doppelgangers mod"
+
 
 local MOD_NAME = "DoppelLobby"
 

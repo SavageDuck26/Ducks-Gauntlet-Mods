@@ -1,8 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26, Skapp
--- Version: 2.5
--- Purpose: Main entry point for Doppelgangers mod with toggleable features
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "2.5.0"
+local MOD_DESCRIPTION = "Main entry point for Doppelgangers mod with toggleable features"
 
 
 local MOD_NAME = "Doppelgangers"

@@ -3,6 +3,10 @@
 -- Purpose: Network RPC handlers for Doppelgangers mod
 -- =================================================================================================
 
+local MOD_AUTHOR = "SavageDuck26/Skapp"
+local MOD_DESCRIPTION = "Network RPC handlers for Doppelgangers mod"
+
+
 local MOD_NAME = "DoppelNetwork"
 
 -- Track if network RPCs are registered

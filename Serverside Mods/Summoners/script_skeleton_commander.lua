@@ -1,7 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Adds spawning abilities to Skeleton Commander
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Adds spawning abilities to Skeleton Commander"
+
 
 local MOD_NAME = "SummonerSkeletonCommander"
 

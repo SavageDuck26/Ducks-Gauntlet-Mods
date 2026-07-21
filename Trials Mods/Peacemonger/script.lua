@@ -1,8 +1,8 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.0
--- Purpose: If more than 1 kill, Trial is failed.
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.0.0"
+local MOD_DESCRIPTION = "If more than 1 kill, Trial is failed."
+
 
 local MOD_NAME = "Peacemonger"
 

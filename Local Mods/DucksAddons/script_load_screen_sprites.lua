@@ -1,8 +1,8 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.0
--- Purpose: Adds the sprites to the load screen.
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.0.0"
+local MOD_DESCRIPTION = "Adds the sprites to the load screen"
+
 
 local MOD_NAME = "LoadScreenSprites"
 

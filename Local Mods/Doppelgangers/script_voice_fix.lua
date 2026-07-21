@@ -1,7 +1,6 @@
--- =================================================================================================
--- Author: SavageDuck26, Skapp
--- Purpose: Fix voice lines playing on wrong heroes when doppelgangers are present
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26/Skapp"
+local MOD_DESCRIPTION = "Fix voice lines playing on wrong heroes when doppelgangers are present"
 
 local MOD_NAME = "DoppelVoiceFix"
 

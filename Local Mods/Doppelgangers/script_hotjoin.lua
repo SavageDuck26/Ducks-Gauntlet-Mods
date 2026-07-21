@@ -1,7 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26, Skapp
--- Purpose: Hotjoin/game client hooks for Doppelgangers mod
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26/Skapp"
+local MOD_DESCRIPTION = "Hotjoin/game client hooks for Doppelgangers mod"
+
 
 local MOD_NAME = "DoppelHotJoin"
 

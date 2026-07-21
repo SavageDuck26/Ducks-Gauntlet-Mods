@@ -1,3 +1,6 @@
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Crown pickup UI"
+
 _G.CrownPickupUI = {
 	css = "gui/default_css",
 	type = "container",

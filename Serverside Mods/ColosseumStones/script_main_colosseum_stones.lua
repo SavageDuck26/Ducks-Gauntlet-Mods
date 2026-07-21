@@ -4,6 +4,11 @@
 -- Purpose: Replace normal spawners with colosseum stone spawners
 -- =================================================================================================
 
+local MOD_AUTHOR = "SavageDuck26, Hoyt, Skapp, Kryptic"
+local MOD_VERSION = "2.0.0"
+local MOD_DESCRIPTION = "Replace normal spawners with colosseum stone spawners"
+
+
 local MOD_NAME = "ColosseumStones"
 
 ColosseumStones = ColosseumStones or {}

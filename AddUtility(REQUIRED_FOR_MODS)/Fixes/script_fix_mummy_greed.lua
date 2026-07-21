@@ -1,9 +1,8 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Fix monster files that are broken.
--- =================================================================================================
 
-local MOD_NAME = "FixMonsters"
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Fix Mummy Greed file."
+
+local MOD_NAME = "FixMummyGreed"
 
 Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     local result = orig(path, ...)

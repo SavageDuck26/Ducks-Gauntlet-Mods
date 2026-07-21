@@ -3,6 +3,10 @@
 -- Purpose: Player manager hooks for Doppelgangers mod
 -- =================================================================================================
 
+local MOD_AUTHOR = "SavageDuck26/Skapp"
+local MOD_DESCRIPTION = "Player manager hooks for Doppelgangers mod"
+
+
 local MOD_NAME = "DoppelPlayerManager"
 
 -- Global player_manager toggle (set by main script)

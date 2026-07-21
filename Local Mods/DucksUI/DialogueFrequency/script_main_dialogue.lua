@@ -1,16 +1,13 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.0
--- Purpose: Modifies dialogue trigger cooldowns and optional dialogue availability
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.0.0"
+local MOD_DESCRIPTION = "Modifies dialogue trigger cooldowns and optional dialogue availability"
 
 local MOD_NAME = "DialogueFrequency"
 
--- Preserve existing namespace (UI module may have loaded first)
 DialogueFrequency = DialogueFrequency or {}
 DialogueFrequency.loaded = true
 
--- Only set defaults if CONFIG doesn't exist yet
 DialogueFrequency.CONFIG = DialogueFrequency.CONFIG or {
     cooldown_multiplier = 1.0,
     remove_optional_types = false

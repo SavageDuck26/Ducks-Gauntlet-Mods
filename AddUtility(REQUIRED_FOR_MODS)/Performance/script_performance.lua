@@ -1,7 +1,5 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Performance optimization mod - smoother culling, increased limits, FPS unlocking
--- =================================================================================================
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Performance optimization mod, smoother culling, increased limits, FPS unlocking"
 
 local MOD_NAME = "PerformanceChanges"
 

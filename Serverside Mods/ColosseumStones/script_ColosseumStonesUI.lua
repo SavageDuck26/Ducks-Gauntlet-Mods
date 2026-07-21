@@ -1,7 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: ColosseumStones Configuration UI Module
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "ColosseumStones UI"
+
 
 local MOD_NAME = "ColosseumStonesUI"
 

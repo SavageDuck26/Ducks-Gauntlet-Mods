@@ -1,8 +1,8 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 3.4
--- Purpose: Main mod menu overlay system
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "3.4.0"
+local MOD_DESCRIPTION = "Main mod menu overlay system"
+
 
 local MOD_NAME = "DucksUI"
 

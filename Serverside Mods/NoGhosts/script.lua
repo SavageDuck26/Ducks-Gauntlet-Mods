@@ -1,8 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.2
--- Purpose: Replaces ghost enemies with skeletons.
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.2.0"
+local MOD_DESCRIPTION = "Replaces ghost enemies with skeletons."
 
 NoGhosts = NoGhosts or {}
 NoGhosts.loaded = true

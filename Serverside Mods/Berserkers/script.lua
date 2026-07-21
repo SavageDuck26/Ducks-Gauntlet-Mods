@@ -1,8 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.3
--- Purpose: Makes some enemies stronger.
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.3.0"
+local MOD_DESCRIPTION = "Makes some enemies faster or bulkier"
 
 local MOD_NAME = "Berserkers"
 

@@ -1,7 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: EndlessShopItems Configuration UI Module
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "EndlessShopItems Configuration UI Module"
+
 
 local MOD_NAME = "EndlessShopItemsUI"
 

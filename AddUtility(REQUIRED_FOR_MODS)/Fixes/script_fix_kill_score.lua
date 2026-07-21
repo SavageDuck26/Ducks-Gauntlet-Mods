@@ -2,6 +2,9 @@
 -- Author: SavageDuck26
 -- =================================================================================================
 
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Fixes killscore serverside from giving too much on certain enemies."
+
 local MOD_NAME = "KillScoreFix"
 
 Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)

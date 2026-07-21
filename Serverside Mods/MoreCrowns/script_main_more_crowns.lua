@@ -1,8 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 2.0
--- Purpose: Adds more crowns to enemies
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "2.0.0"
+local MOD_DESCRIPTION = "Adds more crowns to enemies"
 
 local MOD_NAME = "MoreCrowns"
 

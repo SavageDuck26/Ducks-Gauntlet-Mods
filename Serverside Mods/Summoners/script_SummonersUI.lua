@@ -1,7 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Summoners Configuration UI Module
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Summoners UI"
+
 
 local MOD_NAME = "SummonersUI"
 

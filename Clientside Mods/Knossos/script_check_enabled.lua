@@ -1,3 +1,6 @@
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Activates Knossos at correct times."
+
 local MOD_NAME = "KnossosCheckBuilder"
 
 Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)

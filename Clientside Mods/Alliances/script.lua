@@ -1,8 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.7
--- Purpose: Mixes factions in endless
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.7.0"
+local MOD_DESCRIPTION = "Mixes all factions in Endless"
 
 local MOD_NAME = "Alliances"
 

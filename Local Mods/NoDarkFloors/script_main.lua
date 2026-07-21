@@ -1,8 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26, (Used Skapp's code as a reference.)
--- Version: 1.6
--- Purpose: Removes dark floors from the game. Like the light of Alfheim.
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.6.0"
+local MOD_DESCRIPTION = "Removes dark floors from the game. Like the light of Alfheim."
 
 NoDarkFloors = {}
 NoDarkFloors.loaded = true

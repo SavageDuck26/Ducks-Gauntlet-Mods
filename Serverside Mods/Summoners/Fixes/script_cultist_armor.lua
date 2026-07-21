@@ -1,7 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Fixes issues with Cultist Armor behavior
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Fixes issues with Cultist Armor behavior"
+
 
 local MOD_NAME = "FixCultistArmor"
 

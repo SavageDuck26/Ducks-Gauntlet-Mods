@@ -1,7 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Fixes issues with Homing Skull behavior
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Fixes issues with Homing Skull behavior"
+
 
 local MOD_NAME = "FixHomingSkull"
 

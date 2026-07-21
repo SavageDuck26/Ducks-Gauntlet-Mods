@@ -1,3 +1,6 @@
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Berserkers UI"
+
 local MOD_NAME = "BerserkersUI"
 
 -- Ensure Berserkers table exists (should be loaded from script.lua first)

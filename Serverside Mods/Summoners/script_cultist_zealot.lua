@@ -1,7 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26 (modified)
--- Purpose: Modifies Cultist Zealot to spawn a Demon Melee on death
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Modifies Cultist Zealot to spawn a Demon Melee on death"
+
 
 local MOD_NAME = "SummonerCultistZealot"
 

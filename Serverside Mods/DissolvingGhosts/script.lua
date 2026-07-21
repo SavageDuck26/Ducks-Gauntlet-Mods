@@ -1,8 +1,8 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.0
--- Purpose: Makes Ghosts die after 12-15 seconds
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.0.0"
+local MOD_DESCRIPTION = "Makes Ghosts die after 12-15 seconds"
+
 
 local MOD_NAME = "DissolvingGhosts"
 

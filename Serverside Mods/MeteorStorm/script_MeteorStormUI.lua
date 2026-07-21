@@ -3,6 +3,10 @@
 -- Purpose: MeteorStorm mod configuration interface
 -- =================================================================================================
 
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "MeteorStorm UI"
+
+
 local MOD_NAME = "MeteorStormUI"
 
 -- Ensure MeteorStorm namespace exists

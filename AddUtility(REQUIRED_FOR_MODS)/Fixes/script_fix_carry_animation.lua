@@ -1,7 +1,6 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Fixes issue where carried elemental doesn't properly notify the carrier to exit carry animation state
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Fixes issue where carried elemental doesn't properly notify the carrier to exit carry animation state"
 
 local MOD_NAME = "FixCarryAnimation"
 

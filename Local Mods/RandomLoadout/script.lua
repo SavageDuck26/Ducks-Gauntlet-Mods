@@ -1,8 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.1
--- Purpose: Randomizes LOCAL player loadout (talisman, weapon, relic) each endless floor.
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.1.0"
+local MOD_DESCRIPTION = "Randomizes LOCAL player loadout (talisman, weapon, relic) each endless floor."
 
 local MOD_NAME = "RandomLoadout"
 

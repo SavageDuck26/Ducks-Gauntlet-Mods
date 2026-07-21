@@ -1,7 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Adds spawning abilities to Cultist Sorcerer
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Adds spawning abilities to Cultist Sorcerer"
+
 
 local MOD_NAME = "SummonerCulistSorcerer"
 

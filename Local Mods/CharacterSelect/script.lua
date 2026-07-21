@@ -4,6 +4,11 @@
 -- Purpose: Allows you to switch characters in game.
 -- =================================================================================================
 
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.1.0"
+local MOD_DESCRIPTION = "Allows you to switch characters in game."
+
+
 -- Open the menu IN GAME and press "F3" or "R2".
 
 CharacterSelect = CharacterSelect or {}

@@ -4,6 +4,11 @@
 -- Purpose: Lets you choose any colosseum level you want by cycling through them.
 -- =================================================================================================
 
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.1.0"
+local MOD_DESCRIPTION = "Lets you choose any colosseum level you want by cycling through them."
+
+
 local COLOSSEUM_CHANGE_KEYBIND = "f1"  -- Change this to your desired keybind for increasing day
 
 -- Here is a list of all of the available keybinds that are recommended:

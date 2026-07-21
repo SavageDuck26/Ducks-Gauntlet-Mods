@@ -1,7 +1,6 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Fixes Caves Boss for mods.
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Fixes Caves Boss for mods."
 
 local MOD_NAME = "CavesBossOverride"
 

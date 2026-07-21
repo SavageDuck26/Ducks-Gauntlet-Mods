@@ -3,6 +3,10 @@
 -- Purpose: Knossos mod configuration interface
 -- =================================================================================================
 
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Knossos UI"
+
+
 local MOD_NAME = "KnossosUI"
 
 Knossos = Knossos or {}

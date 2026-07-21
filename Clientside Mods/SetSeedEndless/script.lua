@@ -1,8 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.0
--- Purpose: Set seed for endless, same layout per floor index.
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.0.0"
+local MOD_DESCRIPTION = "Set seed for endless, same layout per floor index"
 
 local MOD_NAME = "SetSeedEndless"
 

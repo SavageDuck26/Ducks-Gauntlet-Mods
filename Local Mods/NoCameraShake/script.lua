@@ -1,8 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.2
--- Purpose: Removes camera shaking effects.
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.2.0"
+local MOD_DESCRIPTION = "Removes camera shaking effects"
 
 NoCameraShake = NoCameraShake or {}
 NoCameraShake.loaded = true

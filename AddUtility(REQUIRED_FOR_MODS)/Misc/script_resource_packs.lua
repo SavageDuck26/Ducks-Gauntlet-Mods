@@ -1,9 +1,8 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Loads all resources to avoid any crashes from missing assets.
--- =================================================================================================
 
-local MOD_NAME = "ResourcePacks"
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Loads all resources to avoid any crashes from missing assets."
+
+local MOD_NAME = "ResourcePacksAddUtil"
 
 Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     local result = orig(path, ...)

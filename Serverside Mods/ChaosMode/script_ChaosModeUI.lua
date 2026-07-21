@@ -1,7 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Chaos/Hell mode configuration UI
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Chaos/Hell mode configuration UI"
+
 
 local MOD_NAME = "ChaosModeConfig"
 

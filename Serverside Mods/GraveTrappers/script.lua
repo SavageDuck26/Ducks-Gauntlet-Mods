@@ -4,6 +4,11 @@
 -- Purpose: Makes enemies spawn traps on death.
 -- =================================================================================================
 
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.8.0"
+local MOD_DESCRIPTION = "Makes enemies spawn traps on death"
+
+
 local MOD_NAME = "GraveTrappers"
 
 GraveTrappers = GraveTrappers or {}

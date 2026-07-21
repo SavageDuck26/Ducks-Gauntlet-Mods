@@ -1,8 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.0
--- Purpose: Adds new tips from an old someone.
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.0.0"
+local MOD_DESCRIPTION = "Adds new tips from an old someone."
 
 local MOD_NAME = "LoadScreenDaemon"
 

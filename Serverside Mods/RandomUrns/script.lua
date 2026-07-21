@@ -1,8 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 4.0
--- Purpose: Makes urns and goldrocks drops random things (Barrels, skullcoins, potions, stones, keys.)
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "4.0.0"
+local MOD_DESCRIPTION = "Makes urns and goldrocks drops random things (Barrels, skullcoins, potions, stones, keys.)"
 
 -- LAVA CRATES CANNOT BE CHANGED. THEY INSTA-CRASH THE GAME IF MODIFIED.
 -- This note above should be correct. However it's not. I don't know why, for some reason now it works.

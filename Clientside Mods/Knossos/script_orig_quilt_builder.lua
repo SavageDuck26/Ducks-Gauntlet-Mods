@@ -1,4 +1,8 @@
-﻿function _G.get_orig_quilt_builder()
+﻿local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Orig fallback builder"
+
+
+function _G.get_orig_quilt_builder()
 	local function quilt_error(fmt, ...)
 		fmt = fmt or "Unknown quilt fail"
 

@@ -1,7 +1,6 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Fixes crashes with poison tower
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Fixes crashes with poison tower by stopping an empty Vec"
 
 local MOD_NAME = "FixPoisonTower"
 

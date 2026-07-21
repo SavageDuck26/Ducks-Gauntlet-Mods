@@ -1,7 +1,6 @@
--- =================================================================================================
--- Author: Fix for poison death animation issue
--- Purpose: Fix poison death animations by making poison use burning hit reactions
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Fix poison death animations by making poison use burning hit reactions"
 
 local MOD_NAME = "PoisonHitReactFix"
 

@@ -4,6 +4,11 @@
 -- Purpose: Random floor every endless level.
 -- =================================================================================================
 
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.2.0"
+local MOD_DESCRIPTION = "Random floor every endless level"
+
+
 EnduranceMode = EnduranceMode or {}
 EnduranceMode.loaded = true
 EnduranceMode.enabled = false

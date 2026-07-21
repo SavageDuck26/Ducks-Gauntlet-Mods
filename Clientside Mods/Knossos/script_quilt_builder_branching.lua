@@ -1,8 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.3
--- Purpose: Clean Custom Quilt Builder Override - Simple Branching System
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.3.0"
+local MOD_DESCRIPTION = "Clean custom Quilt Builder override that branches"
 
 local MOD_NAME = "Knossos"
 

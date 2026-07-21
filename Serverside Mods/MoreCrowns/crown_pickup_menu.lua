@@ -3,6 +3,9 @@
 -- Purpose: UI to display crown pickup counts at the start of each floor
 -- =================================================================================================
 
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "UI to display crown pickup counts at the start of each floor"
+
 local MOD_NAME = "CrownPickupMenu"
 
 MoreCrowns = MoreCrowns or {}

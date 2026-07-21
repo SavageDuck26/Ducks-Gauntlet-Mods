@@ -1,8 +1,8 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 4.2
--- Purpose: Chaos & Hell modes - configurable difficulty modes
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "4.2.0"
+local MOD_DESCRIPTION = "Chaos and Hell modes, configurable difficulty modes"
+
 
 local MOD_NAME = "ChaosMode"
 

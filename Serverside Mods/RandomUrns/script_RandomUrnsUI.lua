@@ -1,11 +1,9 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: RandomUrns Configuration UI Module
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "RandomUrns UI"
 
 local MOD_NAME = "RandomUrnsUI"
 
--- Initialize global RandomUrns namespace (shared with script.lua)
 RandomUrns = RandomUrns or {}
 
 RandomUrns.loaded = RandomUrns.loaded or false

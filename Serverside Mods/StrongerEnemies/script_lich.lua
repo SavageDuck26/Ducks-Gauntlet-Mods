@@ -1,6 +1,7 @@
--- =================================================================================================
--- Author: SavageDuck26
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Adds new abilities to the Lich"
+
 
 local MOD_NAME = "StrongerLich"
 

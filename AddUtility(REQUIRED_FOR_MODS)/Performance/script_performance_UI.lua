@@ -1,7 +1,6 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Purpose: Performance UI
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_DESCRIPTION = "Performance UI"
 
 local MOD_NAME = "PerformanceUI"
 

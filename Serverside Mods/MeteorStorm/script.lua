@@ -1,8 +1,8 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 2.7
--- Purpose: Adds lava levels meteors
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "2.7.0"
+local MOD_DESCRIPTION = "Adds lava levels meteors"
+
 
 local MOD_NAME = "MeteorStorm"
 

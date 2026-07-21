@@ -1,8 +1,6 @@
--- =================================================================================================
--- Author: SavageDuck26, Skapp
--- Version: 2.6
--- Purpose: Revive functionality for Doppelgangers mod - Fixed simultaneous revive crashes
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26/Skapp"
+local MOD_DESCRIPTION = "Revive functionality for Doppelgangers mod - Fixed simultaneous revive crashes"
 
 local MOD_NAME = "DoppelRevive"
 

@@ -1,8 +1,6 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 2.3
--- Purpose: Main function file to control other scripts
--- =================================================================================================
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "2.3.0"
+local MOD_DESCRIPTION = "Main function file to control other scripts"
 
 local MOD_NAME = "AddUtility"
 

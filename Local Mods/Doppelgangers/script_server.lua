@@ -1,7 +1,6 @@
--- =================================================================================================
--- Author: SavageDuck26, Skapp
--- Purpose: Game server hooks for Doppelgangers mod
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26/Skapp"
+local MOD_DESCRIPTION = "Game server hooks for Doppelgangers mod"
 
 local MOD_NAME = "DoppelServer"
 

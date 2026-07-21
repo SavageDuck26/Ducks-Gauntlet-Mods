@@ -1,8 +1,8 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.4
--- Purpose: No Skullcoins
--- =================================================================================================
+
+local MOD_AUTHOR = "SavageDuck26"
+local MOD_VERSION = "1.4.0"
+local MOD_DESCRIPTION = "No Skullcoins"
+
 
 local MOD_NAME = "DeadMansHand"
 
