@@ -3,8 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "2.0.0"
 local MOD_DESCRIPTION = "Adds more crowns to enemies"
 
-local MOD_NAME = "MoreCrowns"
-
+local MOD_NAME, log_message = Mods.init_mod()
 MoreCrowns = MoreCrowns or {}
 MoreCrowns.loaded = true
 
@@ -29,7 +28,7 @@ local function get_crown_chance()
     return MoreCrowns.CONFIG.drop_chance or 0.25
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "gui/screen_lobby_ui" then
@@ -37,7 +36,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
     
     if path == "lua/ai_states/ai_manager" then
-        Mods.hook:set(MOD_NAME, "AIManager._on_monster_spawned", function(orig, self, monster_unit, ...)
+        Mods.hook:set_object_path("AIManager", "_on_monster_spawned", function(orig, self, monster_unit, ...)
             if not MoreCrowns.CONFIG.enabled then
                 return orig(self, monster_unit, ...)
             end
@@ -79,7 +78,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                     })
                 end
             end
-        end)
+        end, MOD_NAME .. ".AIManager._on_monster_spawned", MOD_NAME)
     end
 
     if path == "lua/components/treasure_component" then
@@ -91,12 +90,12 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             return math.random() * 2 - 1
         end
 
-        Mods.hook:set(MOD_NAME, "TreasureComponent.init", function(orig, self, creation_context)
+        Mods.hook:set_object_path("TreasureComponent", "init", function(orig, self, creation_context)
             orig(self, creation_context)
             self.crown_pickup_counts = {}
-        end)
+        end, MOD_NAME .. ".TreasureComponent.init", MOD_NAME)
 
-        Mods.hook:set(MOD_NAME, "TreasureComponent.pickup_master", function(orig, self, treasure_unit, treasure_state, carrier)
+        Mods.hook:set_object_path("TreasureComponent", "pickup_master", function(orig, self, treasure_unit, treasure_state, carrier)
             local player_info = PlayerManager:get_player_info_by_avatar(carrier)
             local player_name = player_info and (player_info.name or player_info.display_name or player_info.player_name) or "Unknown Player"
 
@@ -121,9 +120,9 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             else
                 orig(self, treasure_unit, treasure_state, carrier)
             end
-        end)
+        end, MOD_NAME .. ".TreasureComponent.pickup_master", MOD_NAME)
         -- ================================================================================================================
-        Mods.hook:set(MOD_NAME, "TreasureComponent.drop_master", function (orig, self, treasure_unit, treasure_state)
+        Mods.hook:set_object_path("TreasureComponent", "drop_master", function(orig, self, treasure_unit, treasure_state)
             local carrier = treasure_state.carrier
 
             if not carrier then
@@ -187,8 +186,8 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
             treasure_state.carrier = nil
             treasure_state.dropped_time = _G.GAME_TIME
-        end)
+        end, MOD_NAME .. ".TreasureComponent.drop_master", MOD_NAME)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

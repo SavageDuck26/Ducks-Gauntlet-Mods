@@ -3,9 +3,8 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Adds custom text to shop items."
 
 
-local MOD_NAME = "ShopText"
-
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+local MOD_NAME, log_message = Mods.init_mod()
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "gameobjects/shop/article_ham" then
@@ -22,4 +21,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

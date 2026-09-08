@@ -3,8 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "1.7.0"
 local MOD_DESCRIPTION = "Mixes all factions in Endless"
 
-local MOD_NAME = "Alliances"
-
+local MOD_NAME, log_message = Mods.init_mod()
 local is_crypt_boss_floor = false
 
 -- Weighted list of alliance units (1 is normal spawns, 5 is the hard falloff for rare spawns, past 5-6 is very very rare.)
@@ -147,22 +146,22 @@ local alliances_modify_unit_path = function(original_path)
     return random_choice
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     
     if path == "lua/menu/lobby_logic" then
-        Mods.hook:set(MOD_NAME, "LobbyLogic.from_server_lobby_start_countdown", function (orig, self, server_peer_id, countdown_time, floor_id)
+        Mods.hook:set_object_path("LobbyLogic", "from_server_lobby_start_countdown", function(orig, self, server_peer_id, countdown_time, floor_id)
             orig(self, server_peer_id, countdown_time, floor_id)
             if floor_id == "crypt_floor_10" then
                 is_crypt_boss_floor = true
             else
                 is_crypt_boss_floor = false
             end
-        end)
+        end, MOD_NAME .. ".LobbyLogic.from_server_lobby_start_countdown", MOD_NAME)
     end
 
     if path == "foundation/lua/entity/entity_spawner" then
-        Mods.hook:set(MOD_NAME, "EntitySpawner.spawn_entity", function (orig, self, unit_path, position, rotation, parent_go_id, setup_info)
+        Mods.hook:set_object_path("EntitySpawner", "spawn_entity", function(orig, self, unit_path, position, rotation, parent_go_id, setup_info)
             local modified_path = alliances_modify_unit_path(unit_path)
 
             -- Let original implementation do everything it needs (this preserves spawn_info)
@@ -177,26 +176,26 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
 
             return unit, go_id
-        end)
+        end, MOD_NAME .. ".EntitySpawner.spawn_entity", MOD_NAME)
     end
 
     if path == "lua/managers/entity_culling_manager" then
-        Mods.hook:set(MOD_NAME, "EntityCullingManager.cull_unit", function(orig, self, unit)
+        Mods.hook:set_object_path("EntityCullingManager", "cull_unit", function(orig, self, unit)
             if not self.not_culled_units[unit] then 
                 -- Stops crashes when unregistered units that do not have data to cull when offscreen.
                 return
             end
             orig(self, unit)
-        end)
+        end, MOD_NAME .. ".EntityCullingManager.cull_unit", MOD_NAME)
     end
 
     if path == "lua/managers/endless_server" then
-        Mods.hook:set(MOD_NAME, "EndlessServer.get_floor", function(orig, floor_index)
+        Mods.hook:set_object_path("EndlessServer", "get_floor", function(orig, floor_index)
             orox_spawned = false
 
             return orig(floor_index)
-        end)
+        end, MOD_NAME .. ".EndlessServer.get_floor", MOD_NAME)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

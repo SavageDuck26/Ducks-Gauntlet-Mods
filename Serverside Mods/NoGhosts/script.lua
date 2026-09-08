@@ -6,11 +6,10 @@ local MOD_DESCRIPTION = "Replaces ghost enemies with skeletons."
 NoGhosts = NoGhosts or {}
 NoGhosts.loaded = true
 
-local MOD_NAME = "NoGhosts"
-
+local MOD_NAME, log_message = Mods.init_mod()
 -- print("[" .. MOD_NAME .. "] Gettings rid of those pesky ghosts...")
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "characters/lich/lich" and result then 
@@ -72,4 +71,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
         end
     end
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

@@ -2,11 +2,10 @@
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Adds new abilities to the Eye Demon"
 
-local MOD_NAME = "StrongerDemonHeavy"
-
+local MOD_NAME, log_message = Mods.init_mod()
 local EYE_SORC_TARGET_RANGE = 45
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "characters/demon_heavy/demon_heavy" and result and _G.is_host_ducks_mods then
@@ -119,4 +118,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

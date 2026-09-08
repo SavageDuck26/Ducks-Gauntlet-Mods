@@ -3,15 +3,13 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "1.0.0"
 local MOD_DESCRIPTION = "Adds new tips from an old someone."
 
-local MOD_NAME = "LoadScreenDaemon"
-
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+local MOD_NAME, log_message = Mods.init_mod()
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "lua/states/load_screen_daemon" then
         
-        Mods.hook:set(MOD_NAME, "LoadScreenDaemon.start", 
-            function (orig, self, floor_id)
+        Mods.hook:set_object_path("LoadScreenDaemon", "start", function(orig, self, floor_id)
 
                 if self.visible then
                     return
@@ -95,7 +93,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                 self.widget:get("contents"):set_alpha(0)
                 GUI:finalize_layout()
 
-            end)
+            end, MOD_NAME .. ".LoadScreenDaemon.start", MOD_NAME)
     end
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

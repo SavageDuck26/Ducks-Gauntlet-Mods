@@ -9,8 +9,7 @@ local MOD_VERSION = "1.8.0"
 local MOD_DESCRIPTION = "Makes enemies spawn traps on death"
 
 
-local MOD_NAME = "GraveTrappers"
-
+local MOD_NAME, log_message = Mods.init_mod()
 GraveTrappers = GraveTrappers or {}
 
 GraveTrappers.loaded = true
@@ -204,7 +203,7 @@ local function set_on_death_result_to_drop(result, drop_spec, chance)
 end
 
 -- ============================================================
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if not GraveTrappers.CONFIG.enabled then
@@ -462,7 +461,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
     -- =========================================================================================================
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 
 local safe_working_traps_crypt = {
     "gameobjects/traps/spikeplate_1c_1c",

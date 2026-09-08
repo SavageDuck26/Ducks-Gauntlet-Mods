@@ -3,8 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Adds spawning abilities to Grunt Shaman"
 
 
-local MOD_NAME = "SummonerGruntShaman"
-
+local MOD_NAME, log_message = Mods.init_mod()
 -- Helper function to check if grunt_shaman summoning is enabled
 local function is_grunt_shaman_enabled()
     if Summoners.CONFIG.enabled == false then
@@ -24,7 +23,7 @@ local function get_projectile_chance()
     return 0.25
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "characters/grunt_shaman/grunt_shaman" and result and _G.is_host_ducks_mods == true then
@@ -214,4 +213,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

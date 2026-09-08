@@ -4,8 +4,7 @@ local MOD_VERSION = "4.2.0"
 local MOD_DESCRIPTION = "Chaos and Hell modes, configurable difficulty modes"
 
 
-local MOD_NAME = "ChaosMode"
-
+local MOD_NAME, log_message = Mods.init_mod()
 ChaosMode = ChaosMode or {}
 ChaosMode.loaded = true
 
@@ -212,7 +211,7 @@ local function bypass_chance()
     return math.max(0, chance)
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     if path == "lua/settings/encounter_settings" then
         local result = orig(path, ...)
         
@@ -289,7 +288,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     local result = orig(path, ...)
     -- =================================================================================================
     if path == "lua/managers/encounter_manager" then
-        Mods.hook:set(MOD_NAME, "EncounterManager.stop_encounter", function(orig, self, node, ...)
+        Mods.hook:set_object_path("EncounterManager", "stop_encounter", function(orig, self, node, ...)
             if node then
                 local completed = ChaosMode.completed_encounters
                 if completed then
@@ -298,21 +297,21 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
             
             return orig(self, node, ...)
-        end)
+        end, MOD_NAME .. ".EncounterManager.stop_encounter", MOD_NAME)
     end
     -- =================================================================================================
     if path == "lua/managers/procedural_spawning_manager" then
         
-        Mods.hook:set(MOD_NAME, "ProceduralSpawningManager.clear", function(orig, self, ...)
+        Mods.hook:set_object_path("ProceduralSpawningManager", "clear", function(orig, self, ...)
             ChaosMode.completed_encounters = {}
             ChaosMode.player_furthest_y = false
             cached_allowed_nodes = nil
             cached_player_nodes = {}
             
             return orig(self, ...)
-        end)
+        end, MOD_NAME .. ".ProceduralSpawningManager.clear", MOD_NAME)
 
-        Mods.hook:set(MOD_NAME, "ProceduralSpawningManager.create_spawn_points", function(orig, self, node, create_for_encounters, spawn_death, ...)
+        Mods.hook:set_object_path("ProceduralSpawningManager", "create_spawn_points", function(orig, self, node, create_for_encounters, spawn_death, ...)
             if not create_for_encounters and not spawn_death then
                 if ChaosMode and ChaosMode.CONFIG.mode ~= "normal" then
                     -- Knossos proximity culling
@@ -334,9 +333,9 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
             
             return orig(self, node, create_for_encounters, spawn_death, ...)
-        end)
+        end, MOD_NAME .. ".ProceduralSpawningManager.create_spawn_points", MOD_NAME)
 
-        Mods.hook:set(MOD_NAME, "ProceduralSpawningManager.spawn_at_point", function(orig, self, spawn_point, setup_info, ...)
+        Mods.hook:set_object_path("ProceduralSpawningManager", "spawn_at_point", function(orig, self, spawn_point, setup_info, ...)
             if ChaosMode and ChaosMode.CONFIG.mode ~= "normal" then
                 if spawn_point and spawn_point.position then
                     local position = Vector3Aux.unbox(spawn_point.position)
@@ -359,9 +358,9 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
             
             return orig(self, spawn_point, setup_info, ...)
-        end)
+        end, MOD_NAME .. ".ProceduralSpawningManager.spawn_at_point", MOD_NAME)
 
-        Mods.hook:set(MOD_NAME, "ProceduralSpawningManager.get_encounter_credits", function(orig, self, ...)
+        Mods.hook:set_object_path("ProceduralSpawningManager", "get_encounter_credits", function(orig, self, ...)
             local credits = orig(self, ...)
             if ChaosMode and ChaosMode.CONFIG.mode ~= "normal" then
                 -- ignore the original budget and give every encounter the flat
@@ -380,9 +379,9 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                 credits = mult
             end
             return credits
-        end)
+        end, MOD_NAME .. ".ProceduralSpawningManager.get_encounter_credits", MOD_NAME)
 
-        Mods.hook:set(MOD_NAME, "ProceduralSpawningManager.get_corridor_credits", function(orig, self, ...)
+        Mods.hook:set_object_path("ProceduralSpawningManager", "get_corridor_credits", function(orig, self, ...)
             local credits = orig(self, ...)
             if ChaosMode and ChaosMode.CONFIG.mode ~= "normal" then
                 local mode = ChaosMode.CONFIG.mode
@@ -397,22 +396,22 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                 credits = mult
             end
             return credits
-        end)
+        end, MOD_NAME .. ".ProceduralSpawningManager.get_corridor_credits", MOD_NAME)
 
         -- disable stand/frustum checks probabilistically according to above
-        Mods.hook:set(MOD_NAME, "QueryManager.can_stand_here", function(orig, self, position, radius, ...)
+        Mods.hook:set_object_path("QueryManager", "can_stand_here", function(orig, self, position, radius, ...)
             if math.random() <= bypass_chance() then
                 return true
             end
             return orig(self, position, radius, ...)
-        end)
-        Mods.hook:set(MOD_NAME, "CameraManager.is_position_inside_frustum", function(orig, self, position, ...)
+        end, MOD_NAME .. ".QueryManager.can_stand_here", MOD_NAME)
+        Mods.hook:set_object_path("CameraManager", "is_position_inside_frustum", function(orig, self, position, ...)
             if math.random() <= bypass_chance() then
                 return false, 10
             end
             return orig(self, position, ...)
-        end)
+        end, MOD_NAME .. ".CameraManager.is_position_inside_frustum", MOD_NAME)
     end
     
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

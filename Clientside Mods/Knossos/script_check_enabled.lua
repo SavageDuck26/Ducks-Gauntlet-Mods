@@ -1,9 +1,8 @@
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Activates Knossos at correct times."
 
-local MOD_NAME = "KnossosCheckBuilder"
-
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+local MOD_NAME, log_message = Mods.init_mod()
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     
     if path == "lua/dungeon/dungeon_graph_builder" then
@@ -66,4 +65,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

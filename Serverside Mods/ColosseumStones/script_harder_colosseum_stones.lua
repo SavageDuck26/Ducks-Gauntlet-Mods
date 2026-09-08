@@ -3,12 +3,11 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Replace colosseum spawners with harder ones"
 
 
-local MOD_NAME = "HarderColosseumStones"
-
+local MOD_NAME, log_message = Mods.init_mod()
 ColosseumStones = ColosseumStones or {}
 ColosseumStones.CONFIG = ColosseumStones.CONFIG or { harder_stones_enabled = false }
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     
     -- ==========================================================================================================
@@ -186,4 +185,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
     -- ==========================================================================================================
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

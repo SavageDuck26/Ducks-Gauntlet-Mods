@@ -4,8 +4,7 @@ local MOD_VERSION = "1.0.0"
 local MOD_DESCRIPTION = "If more than 1 kill, Trial is failed."
 
 
-local MOD_NAME = "Peacemonger"
-
+local MOD_NAME, log_message = Mods.init_mod()
 Peacemonger = Peacemonger or {}
 
 Peacemonger.check_kills = function(kills)
@@ -16,13 +15,13 @@ Peacemonger.check_kills = function(kills)
     end
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "lua/components/stats_component" then 
         print("[" .. MOD_NAME .. "]" .. path .. " loaded")
 
-        Mods.hook:set(MOD_NAME, "StatsComponent.command_master", function(orig, self, unit, context, command_name, data)
+        Mods.hook:set_object_path("StatsComponent", "command_master", function(orig, self, unit, context, command_name, data)
             local state = context.state -- Need this to access data
 
             orig(self, unit, context, command_name, data)
@@ -34,8 +33,8 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                     Peacemonger.check_kills(kills)
                 end
             end
-        end)
+        end, MOD_NAME .. ".StatsComponent.command_master", MOD_NAME)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

@@ -7,8 +7,7 @@ local MOD_DESCRIPTION = "Makes urns and goldrocks drops random things (Barrels, 
 -- This note above should be correct. However it's not. I don't know why, for some reason now it works.
 -- I have learned that the lava_metalbox uses the goldrock as a base, that's why it works now.
 
-local MOD_NAME = "RandomUrns"
-
+local MOD_NAME, log_message = Mods.init_mod()
 RandomUrns = RandomUrns or {}
 
 RandomUrns.loaded = true
@@ -75,7 +74,7 @@ RandomUrns.explosive_drops = {
     "gameobjects/carry/carry_barrel_lava",
 }
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "props/smashable_generic" then
@@ -155,4 +154,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

@@ -3,8 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Adds spawning abilities to Skeleton Commander"
 
 
-local MOD_NAME = "SummonerSkeletonCommander"
-
+local MOD_NAME, log_message = Mods.init_mod()
 -- Helper function to check if skeleton_commander summoning is enabled
 local function is_skeleton_commander_enabled()
     if Summoners.CONFIG.enabled == false then
@@ -24,7 +23,7 @@ local function get_arrow_lob_chance()
     return 1.00
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "characters/skeleton_commander/skeleton_commander" and result and _G.is_host_ducks_mods == true then
@@ -84,4 +83,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

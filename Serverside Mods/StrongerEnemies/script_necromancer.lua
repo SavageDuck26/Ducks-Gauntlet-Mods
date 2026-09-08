@@ -3,9 +3,8 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Adds new abilities to the Necromancer enemy"
 
 
-local MOD_NAME = "StrongerNecromancer"
-
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+local MOD_NAME, log_message = Mods.init_mod()
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "characters/necromancer/necromancer" and result and _G.is_host_ducks_mods then
@@ -62,4 +61,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

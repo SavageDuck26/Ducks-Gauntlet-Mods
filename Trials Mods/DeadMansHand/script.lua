@@ -4,11 +4,10 @@ local MOD_VERSION = "1.4.0"
 local MOD_DESCRIPTION = "No Skullcoins"
 
 
-local MOD_NAME = "DeadMansHand"
-
+local MOD_NAME, log_message = Mods.init_mod()
 _G.deadmanshand_active = true
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "lua/states/game_server" and GameServer then
@@ -74,4 +73,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

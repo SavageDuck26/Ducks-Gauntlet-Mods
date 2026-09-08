@@ -3,10 +3,9 @@ local MOD_AUTHOR = "SavageDuck26/Skapp"
 local MOD_DESCRIPTION = "Hotjoin/game client hooks for Doppelgangers mod"
 
 
-local MOD_NAME = "DoppelHotJoin"
-
+local MOD_NAME, log_message = Mods.init_mod()
 -- Hook the require function to modify classes after they're loaded
-Mods.hook:set(MOD_NAME .. "_hotjoin", "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     
     -- Hook game_client.lua to handle hotjoin character selection
@@ -221,5 +220,5 @@ Mods.hook:set(MOD_NAME .. "_hotjoin", "require", function(orig, path, ...)
     end
     
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 

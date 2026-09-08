@@ -4,11 +4,10 @@ local MOD_AUTHOR = "SavageDuck26/Skapp"
 local MOD_DESCRIPTION = "Team preview/lobby hooks for Doppelgangers mod"
 
 
-local MOD_NAME = "DoppelLobby"
-
+local MOD_NAME, log_message = Mods.init_mod()
 lobby_toggle = lobby_toggle ~= false 
 
-Mods.hook:set(MOD_NAME .. "_lobby", "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if lobby_toggle and path == "lua/menu/team_preview" and TeamPreview then
@@ -23,5 +22,5 @@ Mods.hook:set(MOD_NAME .. "_lobby", "require", function(orig, path, ...)
 
     end
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 

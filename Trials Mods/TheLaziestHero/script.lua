@@ -4,8 +4,7 @@ local MOD_VERSION = "1.2.0"
 local MOD_DESCRIPTION = "Trials. Disables most inputs when not wearing the crown for the player with the mod."
 
 
-local MOD_NAME = "TheLaziestHero"
-
+local MOD_NAME, log_message = Mods.init_mod()
 LazyHeroes = {}
 
 LazyHeroes.is_lazy_fucker = nil
@@ -31,7 +30,7 @@ local relic_inputs = {
 	"relic_3",
 }
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "gui/screen_main_menu_ui" and result then
@@ -43,7 +42,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     if path == "lua/components/treasure_component" then
-        Mods.hook:set(MOD_NAME, "StatsComponent.command_master", function(orig, self, unit, context, command_name, data, ...)
+        Mods.hook:set_object_path("StatsComponent", "command_master", function(orig, self, unit, context, command_name, data, ...)
             local result = orig(self, unit, context, command_name, data, ...)
 
             if command_name == "treasure_picked_up" then
@@ -63,9 +62,9 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                     LazyHeroes.set_lazy_status(false)  -- Crown dropped
                 end
             end
-        end)
+        end, MOD_NAME .. ".StatsComponent.command_master", MOD_NAME)
 
-        Mods.hook:set(MOD_NAME, "TreasureComponent.unlink_with_force", function(orig, self, treasure_unit, carrier, ...)
+        Mods.hook:set_object_path("TreasureComponent", "unlink_with_force", function(orig, self, treasure_unit, carrier, ...)
             orig(self, treasure_unit, carrier, ...)
 
             local settings = LuaSettingsManager:get_settings_by_unit(treasure_unit)
@@ -73,19 +72,19 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                 LazyHeroes.set_lazy_status(false)  -- Crown dropped
             end
             
-        end)
+        end, MOD_NAME .. ".TreasureComponent.unlink_with_force", MOD_NAME)
     end
 
     if path == "lua/ai_states/state_valkyrie" then
-        Mods.hook:set(MOD_NAME, "StateValkyrie.block_should_enter", function(orig, component, unit, context, dt, ...)
+        Mods.hook:set_object_path("StateValkyrie", "block_should_enter", function(orig, component, unit, context, dt, ...)
             if LazyHeroes.is_lazy_fucker then return false end
 
             return orig(component, unit, context, dt, ...)
-        end)
+        end, MOD_NAME .. ".StateValkyrie.block_should_enter", MOD_NAME)
     end
 
     if path == "lua/ai_states/state_elf" then
-        Mods.hook:set(MOD_NAME, "StateElf.read_attack_input", function(orig, component, unit, context, dt, ...)
+        Mods.hook:set_object_path("StateElf", "read_attack_input", function(orig, component, unit, context, dt, ...)
             if LazyHeroes.is_lazy_fucker then
                 local state = context.state
                 local original_pressed = state.pressed.elf_special
@@ -98,18 +97,18 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
             
             return orig(component, unit, context, dt, ...)
-        end)
+        end, MOD_NAME .. ".StateElf.read_attack_input", MOD_NAME)
     end
 
     if path == "lua/components/avatar_component" then
-        Mods.hook:set(MOD_NAME, "AvatarComponent.on_avatar_exiting_floor", function(orig, self, avatar_unit, player_go_id, ...)
+        Mods.hook:set_object_path("AvatarComponent", "on_avatar_exiting_floor", function(orig, self, avatar_unit, player_go_id, ...)
             orig(self, avatar_unit, player_go_id, ...)
 
             LazyHeroes.set_lazy_status(false)  -- Exiting floor, crown lost
-        end)
+        end, MOD_NAME .. ".AvatarComponent.on_avatar_exiting_floor", MOD_NAME)
 
         -- Maybe Wiz issue here
-        Mods.hook:set(MOD_NAME, "AvatarComponent.update_masters", function(orig, self, entities, dt, ...)
+        Mods.hook:set_object_path("AvatarComponent", "update_masters", function(orig, self, entities, dt, ...)
             orig(self, entities, dt, ...)
 
             if LazyHeroes.is_lazy_fucker then
@@ -135,11 +134,11 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                     end
                 end
             end
-        end)
+        end, MOD_NAME .. ".AvatarComponent.update_masters", MOD_NAME)
     end
 
     if path == "lua/extensions/combo" then
-        Mods.hook:set(MOD_NAME, "Combo.check_input", function(orig, self, unit, input_data, ...)
+        Mods.hook:set_object_path("Combo", "check_input", function(orig, self, unit, input_data, ...)
             if LazyHeroes.is_lazy_fucker and input_data then
                 local filtered_input = {}
                 
@@ -153,16 +152,16 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             else
                 return orig(self, unit, input_data, ...)
             end
-        end)
+        end, MOD_NAME .. ".Combo.check_input", MOD_NAME)
     end
 
     if path == "lua/ai_states/state_common_character" then
-        Mods.hook:set(MOD_NAME, "StateCommonCharacter.check_extra_ability_input", function(orig, component, unit, context, dt, ...)
+        Mods.hook:set_object_path("StateCommonCharacter", "check_extra_ability_input", function(orig, component, unit, context, dt, ...)
             if LazyHeroes.is_lazy_fucker then return end
             
             orig(component, unit, context, dt, ...)
-        end)
+        end, MOD_NAME .. ".StateCommonCharacter.check_extra_ability_input", MOD_NAME)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

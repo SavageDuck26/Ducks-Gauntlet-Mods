@@ -4,8 +4,7 @@ local MOD_VERSION = "2.7.0"
 local MOD_DESCRIPTION = "Adds lava levels meteors"
 
 
-local MOD_NAME = "MeteorStorm"
-
+local MOD_NAME, log_message = Mods.init_mod()
 MeteorStorm = MeteorStorm or {}
 
 MeteorStorm.loaded = true
@@ -71,7 +70,7 @@ local function get_friendly_fire_setting()
 	return ff
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 	
 	-- Check if mod is enabled
@@ -125,7 +124,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
 		end
 	end
 	return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 
 local TEXT_CONFIG = {
 	Easy = "I'm too young to die!",

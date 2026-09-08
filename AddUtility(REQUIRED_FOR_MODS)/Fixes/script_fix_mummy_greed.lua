@@ -2,9 +2,8 @@
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Fix Mummy Greed file."
 
-local MOD_NAME = "FixMummyGreed"
-
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+local MOD_NAME, log_message = Mods.init_mod()
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "characters/mummy_giant_greed/mummy_giant_greed" then
@@ -185,5 +184,5 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
 
     end
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 

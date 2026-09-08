@@ -2,8 +2,7 @@
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Fixes issue where carried elemental doesn't properly notify the carrier to exit carry animation state"
 
-local MOD_NAME = "FixCarryAnimation"
-
+local MOD_NAME, log_message = Mods.init_mod()
 local function fix_carrier_animation_for_unit(unit)
     local carryable_state = EntityAux.state_master(unit, "carryable")
     if not carryable_state or not carryable_state.carrier then
@@ -46,7 +45,7 @@ local elemental_paths = {
     "gameobjects/carry/elemental_shockwave",
 }
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     for _, elemental_path in ipairs(elemental_paths) do
@@ -63,4 +62,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

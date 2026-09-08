@@ -2,8 +2,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "2.3.0"
 local MOD_DESCRIPTION = "Main function file to control other scripts"
 
-local MOD_NAME = "AddUtility"
-
+local MOD_NAME, log_message = Mods.init_mod()
 _G.is_host_ducks_mods = _G.is_host_ducks_mods or false
 
 _G.check_host_ducks_mods = function(lobby)
@@ -16,11 +15,11 @@ _G.check_host_ducks_mods = function(lobby)
     return false
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "lua/managers/lobby_manager" then
-        Mods.hook:set(MOD_NAME, "LobbyManager.update", function(orig, self, dt)
+        Mods.hook:set_object_path("LobbyManager", "update", function(orig, self, dt)
             orig(self, dt)
 
             if self._network_lobby then
@@ -28,22 +27,22 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
 
             AddUtility.update(dt)
-        end)
+        end, MOD_NAME .. ".LobbyManager.update", MOD_NAME)
     end
 
     if path == "lua/states/state_game" then
-        Mods.hook:set(MOD_NAME, "StateGame.on_exit", function(orig, self, ...)
+        Mods.hook:set_object_path("StateGame", "on_exit", function(orig, self, ...)
             orig(self, ...)
 
             AddUtility.clear_updates()
 
             AddUtility.clear_active_messages()
 
-        end)
+        end, MOD_NAME .. ".StateGame.on_exit", MOD_NAME)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 -- =================================================================================================
 -- =================================================================================================
 -- =================================================================================================

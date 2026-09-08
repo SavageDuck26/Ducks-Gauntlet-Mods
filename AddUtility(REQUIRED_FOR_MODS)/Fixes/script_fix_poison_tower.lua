@@ -2,15 +2,14 @@
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Fixes crashes with poison tower by stopping an empty Vec"
 
-local MOD_NAME = "FixPoisonTower"
-
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+local MOD_NAME, log_message = Mods.init_mod()
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     
     if path == "lua/ability/animated_physic_queries/projectile_lob_physic_query" then
         local GRAVITY = 20
 
-        Mods.hook:set(MOD_NAME, "ProjectileLobPhysicQuery.initiate_frame", function(orig, self, event, dt, world_pose)
+        Mods.hook:set_object_path("ProjectileLobPhysicQuery", "initiate_frame", function(orig, self, event, dt, world_pose)
 
             AnimatedPhysicQuery.initiate_frame(self, event, dt, world_pose)
 
@@ -117,8 +116,8 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             local x = math.max(speed * speed * s * s + 2 * gravity * y0, 0)
 
             query_info.max_time = settings.max_time and settings.max_time / 30 or speed * s / gravity + math.sqrt(x) / gravity + 1
-        end)
+        end, MOD_NAME .. ".ProjectileLobPhysicQuery.initiate_frame", MOD_NAME)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

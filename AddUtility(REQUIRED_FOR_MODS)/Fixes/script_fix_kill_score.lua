@@ -5,9 +5,8 @@
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Fixes killscore serverside from giving too much on certain enemies."
 
-local MOD_NAME = "KillScoreFix"
-
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+local MOD_NAME, log_message = Mods.init_mod()
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "lua/components/stats_component" then
@@ -134,4 +133,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

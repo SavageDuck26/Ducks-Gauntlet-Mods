@@ -3,7 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Adds enemies that drop keys to avoid softlocks in endless"
 
 
-local MOD_NAME = "KnossosKeybearers"
+local MOD_NAME, log_message = Mods.init_mod()
 local KEY_UNIT_PATH = "gameobjects/keys/small"
 
 local TARGET_UNITS = {
@@ -38,7 +38,7 @@ local function spawn_dropped_key(position)
     end
 end
 
-Mods.hook:set(MOD_NAME, "require", function (orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if not result or not TARGET_UNITS[path] then
@@ -69,4 +69,4 @@ Mods.hook:set(MOD_NAME, "require", function (orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

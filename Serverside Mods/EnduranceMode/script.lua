@@ -14,8 +14,7 @@ EnduranceMode.loaded = true
 EnduranceMode.enabled = false
 EnduranceMode.chosen_difficulty = nil -- set when player confirms difficulty for Endurance runs
 
-local MOD_NAME = "EnduranceMode"
-
+local MOD_NAME, log_message = Mods.init_mod()
 local ENDURANCE_DEATH_SPAWN_STEP = 6 -- Spawn Death every X floors
 local ENDURANCE_SPAWN_FLOOR_OFFSET = 56 -- Makes levels act like the Endless floor equivalent
 local ENDURANCE_SPAWN_SCALE = 1.0 -- Don't touch, multiplies this ^^^
@@ -49,11 +48,11 @@ local get_random_next_floor = function()
     return next_floor
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "lua/managers/endless_server" then
-        Mods.hook:set(MOD_NAME, "EndlessServer.get_floor", function(orig, floor_index)
+        Mods.hook:set_object_path("EndlessServer", "get_floor", function(orig, floor_index)
             if not EnduranceMode.enabled then
                 return orig(floor_index)
             end
@@ -64,9 +63,9 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
             
             return level
-        end)
+        end, MOD_NAME .. ".EndlessServer.get_floor", MOD_NAME)
 
-        Mods.hook:set(MOD_NAME, "EndlessServer.check_permanent_rules", function(orig, self, rules)
+        Mods.hook:set_object_path("EndlessServer", "check_permanent_rules", function(orig, self, rules)
             if not EnduranceMode.enabled then
                 return orig(self, rules)
             end
@@ -102,9 +101,9 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                 self._network_router:transmit_to_all_others("from_server_set_difficulty", diff_index)
             end
             return orig_result
-        end)
+        end, MOD_NAME .. ".EndlessServer.check_permanent_rules", MOD_NAME)
 
-        Mods.hook:set(MOD_NAME, "EndlessServer.change_dungeon", function(orig, self, seed, floor_id)
+        Mods.hook:set_object_path("EndlessServer", "change_dungeon", function(orig, self, seed, floor_id)
             local a, b = orig(self, seed, floor_id)
 
             if EnduranceMode.enabled then
@@ -123,9 +122,9 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
 
             return a, b
-        end)
+        end, MOD_NAME .. ".EndlessServer.change_dungeon", MOD_NAME)
 
-        Mods.hook:set(MOD_NAME, "EndlessServer.should_spawn_death", function(orig, self)
+        Mods.hook:set_object_path("EndlessServer", "should_spawn_death", function(orig, self)
             if not EnduranceMode.enabled then
                 return orig(self)
             end
@@ -137,11 +136,11 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             else
                 return
             end
-        end)
+        end, MOD_NAME .. ".EndlessServer.should_spawn_death", MOD_NAME)
     end
 
 	if path == "lua/menu/screen_main_menu" then
-		Mods.hook:set(MOD_NAME, "ScreenMainMenu.rebuild_ui", function (orig, self)
+		Mods.hook:set_object_path("ScreenMainMenu", "rebuild_ui", function(orig, self)
 			orig(self)
 
 			local endurance_level_proto = {
@@ -160,9 +159,9 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
 
 			local endurance_level_widget = GUI:load_proto(endurance_level_proto)
 			self.widget:get("buttons_online"):add_child(endurance_level_widget)
-		end)
+		end, MOD_NAME .. ".ScreenMainMenu.rebuild_ui", MOD_NAME)
 
-		Mods.hook:set(MOD_NAME, "ScreenMainMenu.widget_clicked", function (orig, self, widget, user_name)
+		Mods.hook:set_object_path("ScreenMainMenu", "widget_clicked", function(orig, self, widget, user_name)
 			local id = widget.id
 			if id == "start_endurance_online" then
                 PopupHostOptions.show(GUI.MAIN_CONTROLLER, function()
@@ -177,11 +176,11 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                 EnduranceMode.enabled = false
 				orig(self, widget, user_name)
 			end
-		end)
+		end, MOD_NAME .. ".ScreenMainMenu.widget_clicked", MOD_NAME)
 	end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 
 -- When 0 coins and all people dies, game does not end.
 -- Hell lava floors have their own meteors system (meteors mod does not affected there)

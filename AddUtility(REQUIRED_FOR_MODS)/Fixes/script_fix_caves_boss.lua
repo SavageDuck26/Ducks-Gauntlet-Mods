@@ -2,15 +2,14 @@
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Fixes Caves Boss for mods."
 
-local MOD_NAME = "CavesBossOverride"
-
+local MOD_NAME, log_message = Mods.init_mod()
 local is_caves_boss_floor = false
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "lua/menu/lobby_logic" then
-        Mods.hook:set(MOD_NAME, "LobbyLogic.from_server_lobby_start_countdown", function (orig, self, server_peer_id, countdown_time, floor_id)
+        Mods.hook:set_object_path("LobbyLogic", "from_server_lobby_start_countdown", function (orig, self, server_peer_id, countdown_time, floor_id)
             orig(self, server_peer_id, countdown_time, floor_id)
             if floor_id == "caves_floor_10" then
                 is_caves_boss_floor = true
@@ -19,7 +18,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                 is_caves_boss_floor = false
                 require("lua/ai_states/state_drakh_boss")
             end
-        end)
+        end, MOD_NAME .. ".LobbyLogic.from_server_lobby_start_countdown", MOD_NAME)
     end
 
     if (path == "characters/boss_orox/boss_orox" or path == "boss_orox") and is_caves_boss_floor == false and result then
@@ -1331,4 +1330,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

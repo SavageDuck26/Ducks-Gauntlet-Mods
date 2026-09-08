@@ -4,11 +4,37 @@ local MOD_VERSION = "3.4.0"
 local MOD_DESCRIPTION = "Main mod menu overlay system"
 
 
-local MOD_NAME = "DucksUI"
-
+local MOD_NAME, log_message = Mods.init_mod()
 -- Initialize DucksUI global namespace
 DucksUI = DucksUI or {}
 DucksUI.loaded = true
+
+-- Resolve a mod callback given as a (possibly dotted) global function name.
+local function resolve_callback(func_name)
+    if type(func_name) ~= "string" or func_name == "" then
+        return nil
+    end
+
+    -- Accept both "Namespace.show_config" and "Namespace.show_config()".
+    func_name = func_name:gsub("%s*%(%s*%)%s*$", "")
+
+    local current = _G
+    for part in string.gmatch(func_name, "[^.]+") do
+        if type(current) ~= "table" then
+            return nil
+        end
+        current = rawget(current, part)
+        if current == nil then
+            return nil
+        end
+    end
+
+    if type(current) == "function" then
+        return current
+    end
+    return nil
+end
+
 
 -- List of mod namespaces that use the CONFIG pattern
 local REGISTERED_MODS = {
@@ -299,13 +325,11 @@ local function create_duck_overlay_ui()
             on = {
                 clicked = function()
                     local func_name = btn_config.callback
-                    if func_name then
-                        local ok, func = pcall(loadstring, "return " .. func_name)
-                        if ok and func then
-                            local ok2, result = pcall(func)
-                            if ok2 and type(result) == "function" then
-                                pcall(result)
-                            end
+                    local func = func_name and resolve_callback(func_name)
+                    if func then
+                        local ok2, result = pcall(func)
+                        if ok2 and type(result) == "function" then
+                            pcall(result)
                         end
                     end
                 end
@@ -451,7 +475,7 @@ function hide_duck_overlay()
     current_overlay_widget = nil
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "foundation/lua/util/json" then
@@ -466,7 +490,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             pcall(DucksUI.import_all_settings)
         end
 
-        Mods.hook:set(MOD_NAME, "ScreenMainMenu.rebuild_ui", function (orig, self)            
+        Mods.hook:set_object_path("ScreenMainMenu", "rebuild_ui", function (orig, self)            
             orig(self)
             
             local duck_button = {
@@ -488,12 +512,12 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             
             local custom_duck_widget = GUI:load_proto(duck_button)
             self.widget:get("buttons"):add_child(custom_duck_widget)
-        end)
+        end, MOD_NAME .. ".ScreenMainMenu.rebuild_ui", MOD_NAME)
     end
 
     -- add a lobby button when the lobby screen is required
     if path == "lua/menu/screen_lobby" then
-        Mods.hook:set(MOD_NAME, "ScreenLobby.rebuild_ui", function(orig, self, user_name)
+        Mods.hook:set_object_path("ScreenLobby", "rebuild_ui", function(orig, self, user_name)
             orig(self, user_name)
 
             local widget = self.widget
@@ -530,12 +554,12 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                     widget:add_child(custom_duck_widget)
                 end
             end
-        end)
+        end, MOD_NAME .. ".ScreenLobby.rebuild_ui", MOD_NAME)
     end
 
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 
 local function encode_json(obj)
     local function encode_value(val)
@@ -691,72 +715,17 @@ local function get_settings_file_path()
     local mods_dir = rawget(_G, "DLL_MOD_DIRECTORY_PATH")
     if mods_dir then
         local settings_dir = mods_dir .. "/settings"
-        -- Ensure the settings directory exists
-        if type(modData) == "table" and type(modData.ensure_directory) == "function" then
-            pcall(modData.ensure_directory, settings_dir)
-        else
-            -- Fallback mkdir via os.execute
-            pcall(os.execute, 'if not exist "' .. settings_dir .. '" mkdir "' .. settings_dir .. '"')
-        end
+            -- The loader already creates this settings directory (mods.json lives
+        -- in the settings folder next to the game's mods root).
         local primary_path = settings_dir .. "/" .. filename
         _cached_settings_path = primary_path
         print("[DucksUI] Using settings path: " .. primary_path)
         return primary_path
     end
-    
-    -- Fallback: try relative paths if DLL_MOD_DIRECTORY_PATH is not set
-    local paths_to_try = {}
-    
-    -- Game sandbox only allows writes under custom/logs/ or custom/settings/
-    table.insert(paths_to_try, "custom/settings/" .. filename)
-    
-    -- Try to get AppData path as a fallback
-    local appdata = os.getenv("APPDATA")
-    if appdata then
-        local gauntlet_folder = appdata .. "\\Arrowhead\\Gauntlet"
-        table.insert(paths_to_try, gauntlet_folder .. "\\" .. filename)
-    end
-    
-    -- Try user's home directory
-    local userprofile = os.getenv("USERPROFILE")
-    if userprofile then
-        table.insert(paths_to_try, userprofile .. "\\Documents\\" .. filename)
-    end
-    
-    -- Finally try current directory
-    table.insert(paths_to_try, filename)
-    
-    local function is_writable(path)
-        -- Try to ensure the parent directory exists first
-        local parent_dir = path:match("^(.+)/[^/]+$") or path:match("^(.+)\\[^\\]+$")
-        if parent_dir then
-            -- Make directory if it doesn't exist (ignore errors)
-            local mkdir_cmd = 'if not exist "' .. parent_dir .. '" mkdir "' .. parent_dir .. '"'
-            pcall(os.execute, mkdir_cmd)
-        end
-        
-        local file, err = io.open(path, "a")
-        if file then
-            file:close()
-            return true
-        end
-        -- Save error from inaccessible location for debugging
-        print("[DucksUI] Could not open path for write: " .. path .. " (" .. tostring(err) .. ")")
-        return false
-    end
 
-    -- Test which path is writable
-    for _, path in ipairs(paths_to_try) do
-        if is_writable(path) then
-            _cached_settings_path = path
-            print("[DucksUI] Using settings path: " .. path)
-            return path
-        end
-    end
-
-    -- Return first choice even if we couldn't test it
-    _cached_settings_path = paths_to_try[1] or filename
-    print("[DucksUI] Warning: Could not verify writable path, using: " .. _cached_settings_path)
+    -- No mods-root path available: fall back to a bare file name.
+    _cached_settings_path = filename
+    print("[DucksUI] Warning: Could not resolve settings path, using: " .. filename)
     return _cached_settings_path
 end
 
@@ -831,102 +800,55 @@ local function save_all_ui_player_settings()
     -- Round ALL settings to thousandths place before encoding
     settings = round_floats(settings)
     
-    -- Use the path helper to find a writable location
+    -- Persist through the shared framework settings store (mod_settings.json).
     local json_file_path = get_settings_file_path()
-    
-    local json_content
-    local encode_ok, encode_result = pcall(function()
-        if JSON and JSON.encode_value then
-            return JSON.encode_value(settings)
-        else
-            return encode_json(settings)
+
+    local mod_settings = _G.Mod_settings
+    if type(mod_settings) ~= "table" then
+        mod_settings = {}
+        if _G.moddata and type(_G.moddata.load_mod_settings) == "function" then
+            pcall(_G.moddata.load_mod_settings, mod_settings, nil)
         end
-    end)
-    
-    if not encode_ok then
-        print("[DucksUI] Error encoding settings: " .. tostring(encode_result))
-        return nil
+        _G.Mod_settings = mod_settings
     end
-    json_content = encode_result
-    
-    -- pretty-print if helper exists
-    if pretty_json and json_content then
-        local ok, pretty_result = pcall(pretty_json, json_content)
-        if ok then
-            json_content = pretty_result
-        end
+
+    mod_settings["DucksUI"] = settings
+
+    local saved_ok = false
+    if _G.moddata and type(_G.moddata.save_mod_settings_to_file) == "function" then
+        saved_ok = pcall(_G.moddata.save_mod_settings_to_file, mod_settings, nil)
     end
-    
-    local file, err = io.open(json_file_path, "w")
-    if file then
-        local write_ok, write_err = pcall(function()
-            file:write(json_content)
-            file:close()
-        end)
-        
-        if write_ok then
-            print("[DucksUI] Settings saved successfully to: " .. json_file_path)
-        else
-            print("[DucksUI] Error writing settings: " .. tostring(write_err))
-            pcall(function() file:close() end)
-            return nil
-        end
+
+    if saved_ok then
+        print("[DucksUI] Settings saved successfully to: " .. json_file_path)
     else
-        print("[DucksUI] Could not open settings file for writing: " .. json_file_path)
-        print("[DucksUI] Error: " .. tostring(err))
+        print("[DucksUI] Error saving settings (framework settings store unavailable).")
         return nil
     end
     return settings
 end
 
 local function import_all_ui_player_settings()
-    -- Use the path helper to find the settings file
     local json_file_path = get_settings_file_path()
-        
-    local file, err = io.open(json_file_path, "r")
-    if not file then
-        -- This is normal on first run - no settings file exists yet
-        print("[DucksUI] No settings file found (first run or new install)")
-        return
-    end
-    
-    local read_ok, json_content = pcall(function()
-        local content = file:read("*all")
-        file:close()
-        return content
-    end)
-    
-    if not read_ok then
-        print("[DucksUI] Error reading settings file: " .. tostring(json_content))
-        pcall(function() file:close() end)
-        return
-    end
-                
-    if not json_content or json_content == "" then
-        print("[DucksUI] Settings file is empty")
-        return
-    end
-    
-    local decode_ok, settings = pcall(function()
-        if JSON and JSON.decode_value then
-            return JSON.decode_value(json_content)
-        else
-            return decode_json(json_content)
+
+    local mod_settings = _G.Mod_settings
+    if type(mod_settings) ~= "table" then
+        mod_settings = {}
+        if _G.moddata and type(_G.moddata.load_mod_settings) == "function" then
+            pcall(_G.moddata.load_mod_settings, mod_settings, nil)
         end
-    end)
-    
-    if not decode_ok then
-        print("[DucksUI] Error decoding settings: " .. tostring(settings))
+        _G.Mod_settings = mod_settings
+    end
+
+    local settings = mod_settings["DucksUI"]
+    if type(settings) ~= "table" then
+        -- This is normal on first run - no settings saved yet
+        print("[DucksUI] No settings found (first run or new install)")
         return
     end
-    
-    if not settings or type(settings) ~= "table" then
-        print("[DucksUI] Invalid settings format")
-        return
-    end
-    
+
     print("[DucksUI] Loading settings from: " .. json_file_path)
-    
+
     -- Apply CONFIG from settings to every registered mod that exists
     -- Uses deep_merge so that missing nested tables keep their defaults
     for _, name in ipairs(REGISTERED_MODS) do
@@ -957,43 +879,8 @@ end
 
 -- Migration helper: Try to find settings from the old location and migrate them
 local function migrate_old_settings()
-    local new_path = get_settings_file_path()
-    
-    -- Check all old locations where settings might have been saved
-    local old_paths = { "ducks_ui_mod_settings.json" }
-    local appdata = os.getenv("APPDATA")
-    if appdata then
-        table.insert(old_paths, appdata .. "\\Gauntlet\\ducks_ui_mod_settings.json")
-        table.insert(old_paths, appdata .. "\\Arrowhead\\Gauntlet\\ducks_ui_mod_settings.json")
-    end
-    
-    -- If new settings already exist, no migration needed
-    local new_file = io.open(new_path, "r")
-    if new_file then
-        new_file:close()
-        return
-    end
-    
-    -- Try each old location
-    for _, old_path in ipairs(old_paths) do
-        if old_path ~= new_path then
-            local old_file = io.open(old_path, "r")
-            if old_file then
-                local content = old_file:read("*all")
-                old_file:close()
-                
-                if content and content ~= "" then
-                    local new_write = io.open(new_path, "w")
-                    if new_write then
-                        new_write:write(content)
-                        new_write:close()
-                        print("[DucksUI] Migrated settings from " .. old_path .. " to: " .. new_path)
-                        return
-                    end
-                end
-            end
-        end
-    end
+    -- No-op under the new framework: settings are persisted by moddata into
+    -- mod_settings.json, so no legacy file migration is needed.
 end
 
 -- Run migration on load

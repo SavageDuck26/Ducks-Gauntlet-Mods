@@ -1,8 +1,7 @@
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Performance optimization mod, smoother culling, increased limits, FPS unlocking"
 
-local MOD_NAME = "PerformanceChanges"
-
+local MOD_NAME, log_message = Mods.init_mod()
 PerformanceChanges = PerformanceChanges or {}
 
 PerformanceChanges.CONFIG = PerformanceChanges.CONFIG or {
@@ -54,19 +53,19 @@ PerformanceChanges.CONFIG = PerformanceChanges.CONFIG or {
 PerformanceChanges.initialized = false
 PerformanceChanges.hooks_applied = {}
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "lua/managers/entity_culling_manager" and not PerformanceChanges.hooks_applied.culling then
         PerformanceChanges.hooks_applied.culling = true
         
         if PerformanceChanges.CONFIG.culling.mode == "disabled" then
-            Mods.hook:set(MOD_NAME, "EntityCullingManager.should_cull", function(orig, self)
+            Mods.hook:set_object_path("EntityCullingManager", "should_cull", function(orig, self)
                 return false  -- Never cull
-            end)
+            end, MOD_NAME .. ".EntityCullingManager.should_cull", MOD_NAME)
 
         elseif PerformanceChanges.CONFIG.culling.mode == "relaxed" then
-            Mods.hook:set(MOD_NAME, "EntityCullingManager.register_unit", function(orig, self, unit)
+            Mods.hook:set_object_path("EntityCullingManager", "register_unit", function(orig, self, unit)
                 orig(self, unit)
                 
                 local data = self.not_culled_units[unit]
@@ -77,9 +76,9 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                         data.cull_distance = PerformanceChanges.CONFIG.culling.cull_distance
                     end
                 end
-            end)
+            end, MOD_NAME .. ".EntityCullingManager.register_unit", MOD_NAME)
             
-            Mods.hook:set(MOD_NAME, "EntityCullingManager.update", function(orig, self, dt)
+            Mods.hook:set_object_path("EntityCullingManager", "update", function(orig, self, dt)
                 if dt == 0 then return end
                 if not self:should_cull() then return end
                 
@@ -161,7 +160,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                     
                     self.last_culled_index = ((self.last_culled_index - 1 + checks) % culled_count) + 1
                 end
-            end)
+            end, MOD_NAME .. ".EntityCullingManager.update", MOD_NAME)
         else
             -- Cooked lmao
         end
@@ -170,14 +169,14 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     if path == "lua/ai_states/ai_manager" and not PerformanceChanges.hooks_applied.ai then
         PerformanceChanges.hooks_applied.ai = true
         
-        Mods.hook:set(MOD_NAME, "AIManager.can_spawn_more", function(orig, self)
+        Mods.hook:set_object_path("AIManager", "can_spawn_more", function(orig, self)
             local count = table.map_size(self._monsters)
             local can_spawn = count < PerformanceChanges.CONFIG.ai.max_monsters
             return can_spawn
-        end)
+        end, MOD_NAME .. ".AIManager.can_spawn_more", MOD_NAME)
         
         if PerformanceChanges.CONFIG.ai.disable_ai_culling then
-            Mods.hook:set(MOD_NAME, "AIManager._cull_distant", function(orig, self)
+            Mods.hook:set_object_path("AIManager", "_cull_distant", function(orig, self)
                 local num_unculled = 0
                 for unit, _ in pairs(self._monsters) do
                     if not EntityCullingManager:is_culled(unit) then
@@ -186,10 +185,10 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                 end
                 self._need_culling = false
                 return num_unculled
-            end)
+            end, MOD_NAME .. ".AIManager._cull_distant", MOD_NAME)
         end
         
-        Mods.hook:set(MOD_NAME, "AIManager._try_spawn_monster", function(orig, self, unit_path, position, ...)
+        Mods.hook:set_object_path("AIManager", "_try_spawn_monster", function(orig, self, unit_path, position, ...)
             local spawn_args = {...}
             local spawn_args_n = select("#", ...)
 
@@ -217,9 +216,9 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                     return unit, go_id
                 end
             end
-        end)
+        end, MOD_NAME .. ".AIManager._try_spawn_monster", MOD_NAME)
         
-        Mods.hook:set(MOD_NAME, "AIManager.update", function(orig, self, dt)
+        Mods.hook:set_object_path("AIManager", "update", function(orig, self, dt)
             Profiler.start("AIManager:update")
             
             if self._ai_director then
@@ -251,13 +250,13 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
             
             Profiler.stop()
-        end)
+        end, MOD_NAME .. ".AIManager.update", MOD_NAME)
     end
     
     if path == "lua/states/state_game" and not PerformanceChanges.hooks_applied.state_game then
         PerformanceChanges.hooks_applied.state_game = true
         
-        Mods.hook:set(MOD_NAME, "StateGame.on_enter", function(orig, self, params)
+        Mods.hook:set_object_path("StateGame", "on_enter", function(orig, self, params)
             orig(self, params)
             
             if PerformanceChanges.CONFIG.fps.unlock_fps then
@@ -276,13 +275,13 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                 Despawner.GIB_STATIC_LIGHT_WAIT_TIME = PerformanceChanges.CONFIG.gibs.gib_light_wait
                 Despawner.GIB_STATIC_LIGHT_FADE_TIME = PerformanceChanges.CONFIG.gibs.gib_light_fade
             end
-        end)
+        end, MOD_NAME .. ".StateGame.on_enter", MOD_NAME)
     end
 
     if path == "foundation/lua/managers/surface_effect_manager" and not PerformanceChanges.hooks_applied.surface_effect then
         PerformanceChanges.hooks_applied.surface_effect = true
         
-        Mods.hook:set(MOD_NAME, "SurfaceEffectManager.update", function(orig, self, dt)
+        Mods.hook:set_object_path("SurfaceEffectManager", "update", function(orig, self, dt)
             Profiler.start("surface_effect: update")
             
             local FADE_OUT_TIME = PerformanceChanges.CONFIG.visuals.decal_fade_time
@@ -315,7 +314,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
             
             Profiler.stop()
-        end)
+        end, MOD_NAME .. ".SurfaceEffectManager.update", MOD_NAME)
         
     end
     
@@ -326,12 +325,12 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
         PerformanceChanges.hooks_applied.gib_manager = true
         
         if PerformanceChanges.CONFIG.gibs.fast_despawn then
-            Mods.hook:set(MOD_NAME, "GibManager.add_gib_unit", function(orig, self, unit, start_decay_time, decay_duration, character_depth, fadeout_times)
+            Mods.hook:set_object_path("GibManager", "add_gib_unit", function(orig, self, unit, start_decay_time, decay_duration, character_depth, fadeout_times)
                 local fast_start = start_decay_time or PerformanceChanges.CONFIG.gibs.despawn_wait_time
                 local fast_decay = decay_duration or PerformanceChanges.CONFIG.gibs.decay_duration
                 
                 orig(self, unit, fast_start, fast_decay, character_depth, fadeout_times)
-            end)
+            end, MOD_NAME .. ".GibManager.add_gib_unit", MOD_NAME)
         end
         
     end
@@ -358,7 +357,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
     
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 
 PerformanceChanges.set_config = function(key, value)
     local keys = {}

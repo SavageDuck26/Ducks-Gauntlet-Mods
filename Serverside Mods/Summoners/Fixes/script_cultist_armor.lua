@@ -3,11 +3,10 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Fixes issues with Cultist Armor behavior"
 
 
-local MOD_NAME = "FixCultistArmor"
-
+local MOD_NAME, log_message = Mods.init_mod()
 print("[" .. MOD_NAME .. "] Loaded")
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "characters/cultist_armor/cultist_armor" and result then
@@ -25,4 +24,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

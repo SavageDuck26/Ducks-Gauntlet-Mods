@@ -3,8 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "1.1.0"
 local MOD_DESCRIPTION = "Randomizes LOCAL player loadout (talisman, weapon, relic) each endless floor."
 
-local MOD_NAME = "RandomLoadout"
-
+local MOD_NAME, log_message = Mods.init_mod()
 local randomized_floors = {}
 local randomized_local_players = {}
 local pending_randomization = false
@@ -244,12 +243,12 @@ local function randomize_local_player_loadout(player_info)
     return true
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     
     if path == "lua/managers/endless_client" then
         
-        Mods.hook:set(MOD_NAME, "EndlessClient.set_floor_index", function(orig, self, floor_index, previous_floor_index, ...)
+        Mods.hook:set_object_path("EndlessClient", "set_floor_index", function(orig, self, floor_index, previous_floor_index, ...)
             local ok, err = pcall(function()
 
                 if floor_index ~= current_floor then
@@ -264,12 +263,12 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
 
             return orig(self, floor_index, previous_floor_index, ...)
-        end)
+        end, MOD_NAME .. ".EndlessClient.set_floor_index", MOD_NAME)
     end
     
     if path == "lua/states/game_client" then
         
-        Mods.hook:set(MOD_NAME, "GameClient.spawn_avatar", function(orig, self, player_go_id, position, rotation, hitpoint_ratio, ...)
+        Mods.hook:set_object_path("GameClient", "spawn_avatar", function(orig, self, player_go_id, position, rotation, hitpoint_ratio, ...)
             
             local extra_args = {...}
             local unpack_fn = table.unpack or unpack
@@ -314,9 +313,9 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
 
             return spawn_result
-        end)
+        end, MOD_NAME .. ".GameClient.spawn_avatar", MOD_NAME)
 
-        Mods.hook:set(MOD_NAME, "GameClient.on_world_loaded", function(orig, self, seed, floor, ...)
+        Mods.hook:set_object_path("GameClient", "on_world_loaded", function(orig, self, seed, floor, ...)
             local ret = orig(self, seed, floor, ...)
 
             local ok, err = pcall(function()
@@ -332,12 +331,12 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
 
             return ret
-        end)
+        end, MOD_NAME .. ".GameClient.on_world_loaded", MOD_NAME)
     end
     
     if path == "lua/ui/player_hud" then
         
-        Mods.hook:set(MOD_NAME, "PlayerHud.update_widget", function(orig, self, dt, go_id, ...)
+        Mods.hook:set_object_path("PlayerHud", "update_widget", function(orig, self, dt, go_id, ...)
             local ok, err = pcall(function()
                 if self.relic_refresh_counter == nil then
                     self.relic_refresh_counter = 0
@@ -364,8 +363,8 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
             end
 
             return orig(self, dt, go_id, ...)
-        end)
+        end, MOD_NAME .. ".PlayerHud.update_widget", MOD_NAME)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

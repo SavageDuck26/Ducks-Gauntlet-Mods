@@ -3,8 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Adds spawning abilities to Mummy Priest"
 
 
-local MOD_NAME = "SummonerMummyPriest"
-
+local MOD_NAME, log_message = Mods.init_mod()
 -- Helper function to check if mummy_priest summoning is enabled
 local function is_mummy_priest_enabled()
     if Summoners.CONFIG.enabled == false then
@@ -31,7 +30,7 @@ local function get_bloat_necromancer_chance()
     return 0.10
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "characters/mummy_priest/mummy_priest" and result and _G.is_host_ducks_mods == true then
@@ -146,4 +145,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

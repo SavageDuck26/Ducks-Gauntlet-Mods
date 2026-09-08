@@ -2,9 +2,8 @@
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Loads all resources to avoid any crashes from missing assets."
 
-local MOD_NAME = "ResourcePacksAddUtil"
-
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+local MOD_NAME, log_message = Mods.init_mod()
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     -- Check if path is under layouts but exclude specific files
@@ -54,4 +53,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

@@ -9,8 +9,7 @@ local MOD_VERSION = "2.0.0"
 local MOD_DESCRIPTION = "Replace normal spawners with colosseum stone spawners"
 
 
-local MOD_NAME = "ColosseumStones"
-
+local MOD_NAME, log_message = Mods.init_mod()
 ColosseumStones = ColosseumStones or {}
 ColosseumStones.loaded = true
 
@@ -83,13 +82,12 @@ local function pick_weighted_spawner(list)
     return list[#list].short_path
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     
     if path == "lua/managers/procedural_spawning_manager" then
 
-        Mods.hook:set(MOD_NAME, "ProceduralSpawningManager.spawn_at_point",
-            function(orig, self, spawn_point, setup_info)  -- Added orig to match other mod's pattern
+        Mods.hook:set_object_path("ProceduralSpawningManager", "spawn_at_point", function(orig, self, spawn_point, setup_info)  -- Added orig to match other mod's pattern
                 
                 -- Safety check: Ensure spawn_point and its properties are valid
                 if not spawn_point or not spawn_point.group or not spawn_point.group.enemy_infos or type(spawn_point.group.enemy_infos) ~= "table" then
@@ -152,8 +150,8 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                         table.remove(enemy_infos, index)
                     end
                 end
-            end)
+            end, MOD_NAME .. ".ProceduralSpawningManager.spawn_at_point", MOD_NAME)
         
     end
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

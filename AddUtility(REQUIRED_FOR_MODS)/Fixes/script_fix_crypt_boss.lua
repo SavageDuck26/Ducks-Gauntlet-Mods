@@ -2,22 +2,21 @@
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Fixes Crypt Boss for mods."
 
-local MOD_NAME = "CryptBossOverride"
-
+local MOD_NAME, log_message = Mods.init_mod()
 local is_crypt_boss_floor = false
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "lua/menu/lobby_logic" then
-        Mods.hook:set(MOD_NAME, "LobbyLogic.from_server_lobby_start_countdown", function (orig, self, server_peer_id, countdown_time, floor_id)
+        Mods.hook:set_object_path("LobbyLogic", "from_server_lobby_start_countdown", function (orig, self, server_peer_id, countdown_time, floor_id)
             orig(self, server_peer_id, countdown_time, floor_id)
             if floor_id == "crypt_floor_10" then
                 is_crypt_boss_floor = true
             else
                 is_crypt_boss_floor = false
             end
-        end)
+        end, MOD_NAME .. ".LobbyLogic.from_server_lobby_start_countdown", MOD_NAME)
     end
 
     if (path == "characters/boss_mummy/boss_mummy" or path == "boss_mummy") and is_crypt_boss_floor == false and result then
@@ -725,4 +724,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

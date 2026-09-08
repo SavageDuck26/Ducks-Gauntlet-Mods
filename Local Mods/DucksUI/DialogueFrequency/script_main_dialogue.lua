@@ -3,8 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "1.0.0"
 local MOD_DESCRIPTION = "Modifies dialogue trigger cooldowns and optional dialogue availability"
 
-local MOD_NAME = "DialogueFrequency"
-
+local MOD_NAME, log_message = Mods.init_mod()
 DialogueFrequency = DialogueFrequency or {}
 DialogueFrequency.loaded = true
 
@@ -244,11 +243,11 @@ end
 -- Hook Logic
 -- =================================================================================================
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "lua/managers/vo_manager" then 
-        Mods.hook:set(MOD_NAME, "VO_Manager.on_script_reload", function(orig, self, ...)
+        Mods.hook:set_object_path("VO_Manager", "on_script_reload", function(orig, self, ...)
             orig(self, ...)
             
             local config = DialogueFrequency.CONFIG
@@ -263,8 +262,8 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                 end
             end
             
-        end)
+        end, MOD_NAME .. ".VO_Manager.on_script_reload", MOD_NAME)
 
     end
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

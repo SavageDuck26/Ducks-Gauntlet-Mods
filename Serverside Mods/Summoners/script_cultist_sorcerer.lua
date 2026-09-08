@@ -3,8 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Adds spawning abilities to Cultist Sorcerer"
 
 
-local MOD_NAME = "SummonerCulistSorcerer"
-
+local MOD_NAME, log_message = Mods.init_mod()
 -- Helper function to check if cultist_sorcerer summoning is enabled
 local function is_cultist_sorcerer_enabled()
     if Summoners.CONFIG.enabled == false then
@@ -31,7 +30,7 @@ local function get_shield_spawner_chance()
     return 0.25
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "characters/cultist_sorcerer/cultist_sorcerer" and result and _G.is_host_ducks_mods == true then
@@ -235,4 +234,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

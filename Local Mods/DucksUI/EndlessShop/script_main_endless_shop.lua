@@ -3,8 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "EndlessShopItems Configuration UI Module"
 
 
-local MOD_NAME = "EndlessShopItemsUI"
-
+local MOD_NAME, log_message = Mods.init_mod()
 _G.chaos_config = _G.chaos_config or {}
 _G.endlessshop_config = _G.endlessshop_config or {}
 
@@ -231,7 +230,7 @@ end
 
 _G.show_endlessshop_config = show_endlessshop_config
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     if path == "gameobjects/shop/article_random" and result then
         result.on_entity_registered = function (unit)
@@ -309,4 +308,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
         end
     end
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

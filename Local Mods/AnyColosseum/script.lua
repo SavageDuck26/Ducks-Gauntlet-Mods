@@ -17,17 +17,17 @@ local COLOSSEUM_CHANGE_KEYBIND = "f1"  -- Change this to your desired keybind fo
 
 -- ON CONTROLLER: Press R1 to cycle.
 
-local MOD_NAME = "AnyColosseum"
+local MOD_NAME, log_message = Mods.init_mod()
 local COLOSSEUM_COUNTER = 0
 
 print("[" .. MOD_NAME .. "] Someone's cherry picking...")
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "lua/menu/screen_main_menu" then
         
-        Mods.hook:set(MOD_NAME, "ScreenMainMenu.update", function(orig, self, dt, ...)
+        Mods.hook:set_object_path("ScreenMainMenu", "update", function(orig, self, dt, ...)
             if Platform:get_connection_status() == Platform.CONNECTION_LOST or Platform:resumed_from_suspension() then
                     self.menu_manager:clear_selection_history(self._screen_name)
                     self:show_mode_buttons()
@@ -65,7 +65,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                     end
                 end      
             return orig(self, dt, ...)
-        end)
+        end, MOD_NAME .. ".ScreenMainMenu.update", MOD_NAME)
     end
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

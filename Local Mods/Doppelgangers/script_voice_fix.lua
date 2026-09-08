@@ -2,10 +2,9 @@
 local MOD_AUTHOR = "SavageDuck26/Skapp"
 local MOD_DESCRIPTION = "Fix voice lines playing on wrong heroes when doppelgangers are present"
 
-local MOD_NAME = "DoppelVoiceFix"
-
+local MOD_NAME, log_message = Mods.init_mod()
 -- Hook the require function to modify stat event handling
-Mods.hook:set(MOD_NAME .. "_voice", "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     
     -- Hook stat_event_hud.lua to use player_go_id instead of avatar_type for identification
@@ -141,4 +140,4 @@ Mods.hook:set(MOD_NAME .. "_voice", "require", function(orig, path, ...)
     end
     
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

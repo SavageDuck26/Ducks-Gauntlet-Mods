@@ -2,13 +2,12 @@
 local MOD_AUTHOR = "SavageDuck26/Skapp"
 local MOD_DESCRIPTION = "Avatar loadout hooks for Doppelgangers mod"
 
-local MOD_NAME = "DoppelLoudout"
-
+local MOD_NAME, log_message = Mods.init_mod()
 -- Global loadout toggle (set by main script)
 loadout_toggle = loadout_toggle ~= false -- default to true unless set false
 
 -- Hook the require function to modify classes after they're loaded
-Mods.hook:set(MOD_NAME .. "_loadout", "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     -- Only run loadout code if loadout_toggle is true
     if loadout_toggle and path == "lua/menu/avatar_loadout" and AvatarLoadout then
@@ -38,5 +37,5 @@ Mods.hook:set(MOD_NAME .. "_loadout", "require", function(orig, path, ...)
         end
     end
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 

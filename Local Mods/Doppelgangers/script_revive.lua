@@ -2,8 +2,7 @@
 local MOD_AUTHOR = "SavageDuck26/Skapp"
 local MOD_DESCRIPTION = "Revive functionality for Doppelgangers mod - Fixed simultaneous revive crashes"
 
-local MOD_NAME = "DoppelRevive"
-
+local MOD_NAME, log_message = Mods.init_mod()
 -- Hook the require function to modify classes after they're loaded
 
 -- Global revive toggle (set by main script)
@@ -12,7 +11,7 @@ revive_toggle = revive_toggle ~= false -- default to true unless set false
 -- Track pending revive requests to prevent race conditions
 local pending_revives = {}
 
-Mods.hook:set(MOD_NAME .. "_revive", "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     -- Only run revive code if revive_toggle is true AND DeadMansHand is NOT active
     if revive_toggle and not _G.deadmanshand_active and path == "lua/states/game_client" and GameClient then
@@ -120,5 +119,5 @@ Mods.hook:set(MOD_NAME .. "_revive", "require", function(orig, path, ...)
         end
     end
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 

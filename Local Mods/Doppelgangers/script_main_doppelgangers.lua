@@ -4,8 +4,7 @@ local MOD_VERSION = "2.5.0"
 local MOD_DESCRIPTION = "Main entry point for Doppelgangers mod with toggleable features"
 
 
-local MOD_NAME = "Doppelgangers"
-
+local MOD_NAME, log_message = Mods.init_mod()
 _G.deadmanshand_active = _G.deadmanshand_active or false -- Ensure this is defined for compatibility with DeadMansHand mod
 
 print("[" .. MOD_NAME .. "] Making a few doubles, doubles, doubles, doubles...")
@@ -34,7 +33,7 @@ local function check_is_host()
     return false
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "gui/screen_main_menu_ui" and result then
@@ -75,4 +74,4 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)

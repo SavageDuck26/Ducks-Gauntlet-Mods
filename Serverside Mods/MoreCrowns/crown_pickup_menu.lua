@@ -6,10 +6,16 @@
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "UI to display crown pickup counts at the start of each floor"
 
-local MOD_NAME = "CrownPickupMenu"
-
+local MOD_NAME, log_message = Mods.init_mod()
 MoreCrowns = MoreCrowns or {}
-MoreCrowns.CONFIG.crown_pickup_ui = MoreCrowns.CONFIG.crown_pickup_ui == nil and true or MoreCrowns.CONFIG.crown_pickup_ui
+-- CONFIG is owned by script_main_more_crowns.lua, which may not have run yet
+-- depending on script load order. Only fill the default once it exists so we
+-- never stamp over the full defaults table.
+if MoreCrowns.CONFIG then
+    if MoreCrowns.CONFIG.crown_pickup_ui == nil then
+        MoreCrowns.CONFIG.crown_pickup_ui = true
+    end
+end
 MoreCrowns.crowns_held_currently = MoreCrowns.crowns_held_currently or {}
 MoreCrowns.crowns_picked_up_total = MoreCrowns.crowns_picked_up_total or {}
 MoreCrowns.crowns_picked_up_floor = MoreCrowns.crowns_picked_up_floor or {}
@@ -64,7 +70,7 @@ local function show_crowns_pickup_ui(endless_client)
     end)
 end
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "gui/crown_pickup_ui" then
@@ -72,7 +78,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     if path == "lua/managers/endless_client" then
-        Mods.hook:set(MOD_NAME, "EndlessClient.show_floor_start_popup", function(orig, self)
+        Mods.hook:set_object_path("EndlessClient", "show_floor_start_popup", function(orig, self)
             orig(self)
 
             local floor_index = self._floor_index or 1
@@ -87,9 +93,9 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
                 show_crowns_pickup_ui(self)
 
             end
-        end)
+        end, MOD_NAME .. ".EndlessClient.show_floor_start_popup", MOD_NAME)
     end
     
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 

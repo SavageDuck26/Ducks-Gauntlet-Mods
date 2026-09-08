@@ -7,13 +7,12 @@ local MOD_AUTHOR = "SavageDuck26/Skapp"
 local MOD_DESCRIPTION = "Player manager hooks for Doppelgangers mod"
 
 
-local MOD_NAME = "DoppelPlayerManager"
-
+local MOD_NAME, log_message = Mods.init_mod()
 -- Global player_manager toggle (set by main script)
 player_manager_toggle = player_manager_toggle ~= false -- default to true unless set false
 
 -- Hook the require function to modify classes after they're loaded
-Mods.hook:set(MOD_NAME .. "_player_manager", "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     -- Only run player_manager code if player_manager_toggle is true
     if player_manager_toggle and path == "foundation/lua/player/player_manager" and PlayerManager then
@@ -255,5 +254,5 @@ Mods.hook:set(MOD_NAME .. "_player_manager", "require", function(orig, path, ...
         end
     end
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 

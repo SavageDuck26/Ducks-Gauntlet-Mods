@@ -3,8 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "1.3.0"
 local MOD_DESCRIPTION = "Clean custom Quilt Builder override that branches"
 
-local MOD_NAME = "Knossos"
-
+local MOD_NAME, log_message = Mods.init_mod()
 Knossos = Knossos or {}
 Knossos.loaded = true
 
@@ -103,7 +102,7 @@ Knossos.is_enabled = Knossos.CONFIG.enabled
 
 Knossos.original_quilt_builder = {}
 
-Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     
     if path == "lua/dungeon/quilt_builder" then        
@@ -111,7 +110,7 @@ Mods.hook:set(MOD_NAME, "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 
 
 -- Global function to return the custom quilt builder

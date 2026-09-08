@@ -2,11 +2,10 @@
 local MOD_AUTHOR = "SavageDuck26/Skapp"
 local MOD_DESCRIPTION = "Game server hooks for Doppelgangers mod"
 
-local MOD_NAME = "DoppelServer"
-
+local MOD_NAME, log_message = Mods.init_mod()
 server_toggle = server_toggle ~= false -- default to true unless set false
 
-Mods.hook:set(MOD_NAME .. "_server", "require", function(orig, path, ...)
+Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     
     -- Hook game_server.lua to handle server-side hotjoin logic
@@ -309,5 +308,5 @@ Mods.hook:set(MOD_NAME .. "_server", "require", function(orig, path, ...)
     end
 
     return result
-end)
+end, MOD_NAME .. ".require", MOD_NAME)
 
