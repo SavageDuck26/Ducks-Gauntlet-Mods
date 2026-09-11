@@ -1,2 +1,5 @@
 # Release archives — publish these as GitHub Releases on a tag instead of committing them.
 *.zip
+
+# Local dev-only working files — never published.
+DEV/
