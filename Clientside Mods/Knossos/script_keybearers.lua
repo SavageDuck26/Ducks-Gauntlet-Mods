@@ -45,7 +45,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         return result
     end
 
-    Knossos = Knossos or {}
+    if rawget(_G, "Knossos") == nil then rawset(_G, "Knossos", {}) end
     if not Knossos.enabled then
         return result
     end

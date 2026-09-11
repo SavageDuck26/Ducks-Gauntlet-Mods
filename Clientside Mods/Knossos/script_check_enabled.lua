@@ -6,7 +6,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     
     if path == "lua/dungeon/dungeon_graph_builder" then
-        Knossos = Knossos or {}
+        if rawget(_G, "Knossos") == nil then rawset(_G, "Knossos", {}) end
         
         DungeonGraphBuilder.generate_layout_graph = function (self, cluster, layout_node, x, y, override_name)
             cluster.layout_data = layout_node

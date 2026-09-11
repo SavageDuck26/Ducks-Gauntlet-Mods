@@ -30,7 +30,6 @@ DucksUI: Adds a main menu choice to change the config settings for any mod with 
 FragileHeroes: Causes players to die immediately from any source of damage taken. (Requested by Lein)
 NoCameraShake: Removes all camera shaking from the game. (Requested by Siopilos as QoL for ChaosMode mod)
 NoDarkFloors: Removes darkened endless floors from the game. (Made at the request of Siopilos)
-Outlines(UI): Give all characters outlines so they are easier to see. (Made at the request of Ky1 and masterslay)
 
 Serverside Mods:
 Berserkers(UI): Enemies can enter Berserker mode, making them much faster. The difficulty of Berserkers ramps up over time, eventually activating Juggernaut mode. Juggernaut mode heals enemies for a period of time, making them much harder to kill. Enemies can enter Juggernaut mode by default as well.
@@ -41,7 +40,6 @@ GraveTrappers(UI): Enemies can spawn traps or trigger effects when they die.
 MeteorStorm(UI): Enables the Firebombs in lava floors during endless mode. (Requested by Siopilos)
 MoreCrowns(UI): Allows enemies to wear crowns more often. Displays the total amount of crowns picked up at the end of every level. (Requested by Siopilos and Kryptic)
 NoGhosts: Removes ghosts spawning from the game and replaces them with skeletons. 
-Outlines(UI): Give all characters outlines so they are easier to see. (Mostly for newer players, this only works for the player with the mod) (Made at the request of Ky1 and masterslay)
 RandomLoadout: Randomizes your loadout whenever entering a new floor.
 RandomUrns(UI): Changes the urns with gold in them, the goldrocks in caves, and the metal crates in lava levels to drop things from a set table instead. Can drop Explosive Barrels, Potions, Elemental Orbs. Other breakable props can drop gold or keys.
 SkullcoinScarcity: Makes earning a skullcoin 4x harder. (Made at the request of Siopilos)

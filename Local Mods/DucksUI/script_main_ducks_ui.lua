@@ -46,7 +46,6 @@ local REGISTERED_MODS = {
     "Knossos",
     "MeteorStorm",
     "MoreCrowns",
-    "Outlines",
     "PerformanceChanges",
     "RandomUrns",
     "Summoners",
@@ -108,7 +107,6 @@ local function create_descriptions_overlay_ui()
 - NoCameraShake: Disables all camera shake effects.
 - NoDarkFloors: Disables dark floors in Endless mode.
 - NoGhosts: Replaces all ghost spawns with skeletons instead.
-- Outlines: Outlines all characters on your screen for easier visibility.
 - RandomUrns: Gold Urns, Goldrocks, Gold Crates, and other props if you choose, drop random items when destroyed.
 - SkullcoinScarcity: Makes earning skullcoins 4x harder.
 - Summoners: Caster enemies can summon additional enemies when they cast spells.
@@ -279,7 +277,6 @@ local function create_duck_overlay_ui()
         {id = "knossos_config", text = "Knossos Config", callback = "Knossos.show_config()", global = "Knossos", func = "show_config"},
         {id = "meteor_storm_config", text = "MeteorStorm Config", callback = "MeteorStorm.show_config()", global = "MeteorStorm", func = "show_config"},
         {id = "more_crowns_config", text = "MoreCrowns Config", callback = "MoreCrowns.show_config()", global = "MoreCrowns", func = "show_config"},
-        {id = "outlines_config", text = "Outlines Config", callback = "Outlines.show_config()", global = "Outlines", func = "show_config"},
         {id = "performance_config", text = "Performance Config", callback = "PerformanceChanges.show_config()", global = "PerformanceChanges", func = "show_config"},
         {id = "randomurns_config", text = "RandomUrns Config", callback = "RandomUrns.show_config()", global = "RandomUrns", func = "show_config"},
         {id = "summoners_config", text = "Summoners Config", callback = "Summoners.show_config()", global = "Summoners", func = "show_config"},
