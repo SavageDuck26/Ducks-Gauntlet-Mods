@@ -143,8 +143,11 @@ local function is_node_near_players(node)
     if not node then
         return true
     end
-    -- Only cull when Knossos branching is active
-    if not Knossos or not Knossos.CONFIG or not Knossos.CONFIG.enabled then
+    -- Only cull when Knossos branching is active.
+    -- NOTE: Knossos is an optional mod, so its global may not exist at all.
+    -- strict.lua errors on reading an undeclared global, so read it with rawget.
+    local knossos = rawget(_G, "Knossos")
+    if not knossos or not knossos.CONFIG or not knossos.CONFIG.enabled then
         return true
     end
 
