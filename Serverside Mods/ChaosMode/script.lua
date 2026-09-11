@@ -4,7 +4,7 @@ local MOD_VERSION = "4.2.0"
 local MOD_DESCRIPTION = "Chaos and Hell modes, configurable difficulty modes"
 
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/ChaosMode/ChaosMode.lua")
 ChaosMode = ChaosMode or {}
 ChaosMode.loaded = true
 

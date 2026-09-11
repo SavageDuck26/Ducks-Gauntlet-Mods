@@ -6,7 +6,7 @@ local MOD_DESCRIPTION = "Removes dark floors from the game. Like the light of Al
 NoDarkFloors = {}
 NoDarkFloors.loaded = true
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/NoDarkFloors/NoDarkFloors.lua")
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 

@@ -4,7 +4,7 @@ local MOD_VERSION = "1.4.0"
 local MOD_DESCRIPTION = "No Skullcoins"
 
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/DeadMansHand/DeadMansHand.lua")
 _G.deadmanshand_active = true
 
 Mods.hook:set_object(_G, "require", function(orig, path, ...)

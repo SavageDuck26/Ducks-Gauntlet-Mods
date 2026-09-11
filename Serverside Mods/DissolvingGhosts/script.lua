@@ -4,7 +4,7 @@ local MOD_VERSION = "1.0.0"
 local MOD_DESCRIPTION = "Makes Ghosts die after 12-15 seconds"
 
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/DissolvingGhosts/DissolvingGhosts.lua")
 print("[" .. MOD_NAME .. "] Loaded.")
 
 Mods.hook:set_object(_G, "require", function(orig, path, ...)

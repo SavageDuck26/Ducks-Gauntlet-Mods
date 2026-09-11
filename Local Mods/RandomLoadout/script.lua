@@ -3,7 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "1.1.0"
 local MOD_DESCRIPTION = "Randomizes LOCAL player loadout (talisman, weapon, relic) each endless floor."
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/RandomLoadout/RandomLoadout.lua")
 local randomized_floors = {}
 local randomized_local_players = {}
 local pending_randomization = false

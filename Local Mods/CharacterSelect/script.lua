@@ -14,7 +14,7 @@ local MOD_DESCRIPTION = "Allows you to switch characters in game."
 CharacterSelect = CharacterSelect or {}
 CharacterSelect.loaded = true
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/CharacterSelect/CharacterSelect.lua")
 -- print("[" .. MOD_NAME .. "] Someone's indecisive...")
 
 Mods.hook:set_object(_G, "require", function(orig, path, ...)

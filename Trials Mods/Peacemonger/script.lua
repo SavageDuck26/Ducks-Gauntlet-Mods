@@ -4,7 +4,7 @@ local MOD_VERSION = "1.0.0"
 local MOD_DESCRIPTION = "If more than 1 kill, Trial is failed."
 
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/Peacemonger/Peacemonger.lua")
 Peacemonger = Peacemonger or {}
 
 Peacemonger.check_kills = function(kills)

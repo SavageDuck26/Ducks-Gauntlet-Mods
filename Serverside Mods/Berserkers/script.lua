@@ -3,7 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "1.3.0"
 local MOD_DESCRIPTION = "Makes some enemies faster or bulkier"
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/Berserkers/Berserkers.lua")
 Berserkers = Berserkers or {}
 
 -- Mark as loaded so DucksUI can save settings

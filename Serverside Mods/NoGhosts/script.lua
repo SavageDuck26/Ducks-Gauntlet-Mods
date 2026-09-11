@@ -6,7 +6,7 @@ local MOD_DESCRIPTION = "Replaces ghost enemies with skeletons."
 NoGhosts = NoGhosts or {}
 NoGhosts.loaded = true
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/NoGhosts/NoGhosts.lua")
 -- print("[" .. MOD_NAME .. "] Gettings rid of those pesky ghosts...")
 
 Mods.hook:set_object(_G, "require", function(orig, path, ...)

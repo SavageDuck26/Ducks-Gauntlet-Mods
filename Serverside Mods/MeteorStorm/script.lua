@@ -4,7 +4,7 @@ local MOD_VERSION = "2.7.0"
 local MOD_DESCRIPTION = "Adds lava levels meteors"
 
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/MeteorStorm/MeteorStorm.lua")
 MeteorStorm = MeteorStorm or {}
 
 MeteorStorm.loaded = true

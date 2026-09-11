@@ -6,7 +6,7 @@ local MOD_DESCRIPTION = "Removes camera shaking effects"
 NoCameraShake = NoCameraShake or {}
 NoCameraShake.loaded = true
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/NoCameraShake/NoCameraShake.lua")
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     

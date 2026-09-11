@@ -2,7 +2,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "2.3.0"
 local MOD_DESCRIPTION = "Main function file to control other scripts"
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/AddUtility(REQUIRED_FOR_MODS)/AddUtility(REQUIRED_FOR_MODS).lua")
 _G.is_host_ducks_mods = _G.is_host_ducks_mods or false
 
 _G.check_host_ducks_mods = function(lobby)

@@ -17,7 +17,7 @@ local COLOSSEUM_CHANGE_KEYBIND = "f1"  -- Change this to your desired keybind fo
 
 -- ON CONTROLLER: Press R1 to cycle.
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/AnyColosseum/AnyColosseum.lua")
 local COLOSSEUM_COUNTER = 0
 
 print("[" .. MOD_NAME .. "] Someone's cherry picking...")

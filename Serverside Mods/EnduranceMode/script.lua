@@ -14,7 +14,7 @@ EnduranceMode.loaded = true
 EnduranceMode.enabled = false
 EnduranceMode.chosen_difficulty = nil -- set when player confirms difficulty for Endurance runs
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/EnduranceMode/EnduranceMode.lua")
 local ENDURANCE_DEATH_SPAWN_STEP = 6 -- Spawn Death every X floors
 local ENDURANCE_SPAWN_FLOOR_OFFSET = 56 -- Makes levels act like the Endless floor equivalent
 local ENDURANCE_SPAWN_SCALE = 1.0 -- Don't touch, multiplies this ^^^

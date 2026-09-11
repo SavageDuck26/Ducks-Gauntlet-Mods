@@ -4,7 +4,7 @@ local MOD_VERSION = "1.2.0"
 local MOD_DESCRIPTION = "Trials. Disables most inputs when not wearing the crown for the player with the mod."
 
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/TheLaziestHero/TheLaziestHero.lua")
 LazyHeroes = {}
 
 LazyHeroes.is_lazy_fucker = nil

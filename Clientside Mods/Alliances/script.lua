@@ -3,7 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "1.7.0"
 local MOD_DESCRIPTION = "Mixes all factions in Endless"
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/Alliances/Alliances.lua")
 local is_crypt_boss_floor = false
 
 -- Weighted list of alliance units (1 is normal spawns, 5 is the hard falloff for rare spawns, past 5-6 is very very rare.)

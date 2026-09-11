@@ -9,7 +9,7 @@ local MOD_VERSION = "1.8.0"
 local MOD_DESCRIPTION = "Makes enemies spawn traps on death"
 
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/GraveTrappers/GraveTrappers.lua")
 GraveTrappers = GraveTrappers or {}
 
 GraveTrappers.loaded = true

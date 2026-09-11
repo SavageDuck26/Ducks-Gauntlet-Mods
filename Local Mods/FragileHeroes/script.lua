@@ -3,7 +3,7 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "1.0.0"
 local MOD_DESCRIPTION = "Makes player die in one hit"
 
-local MOD_NAME, log_message = Mods.init_mod()
+local MOD_NAME, log_message = Mods.init_mod(nil, "mods/FragileHeroes/FragileHeroes.lua")
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
