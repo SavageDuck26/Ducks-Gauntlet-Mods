@@ -1,4 +1,4 @@
-This is where I will be updating my Modpack for Gauntlet Slayer Edition. Please read all Documentation for mods before using them.
+This is where I will be updating my modpack for Gauntlet Slayer Edition using the Bitesquid mod loader made by Skapp. Please read all Documentation for mods before using them.
 
 Important Notes:
 
