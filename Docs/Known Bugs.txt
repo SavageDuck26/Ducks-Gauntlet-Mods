@@ -10,9 +10,6 @@ PF: Change effects to ignore i-frames by applying instead of effecting.
 B: Pots cooldown + RandomLoadout do not display cooldown visuals correctly. (Reported by Siopilos)
 PF: N/A
 
-B: TheLaziestHero (ID‑NT) v1.2 curse (reverse lazy mod) needs fixes because players can still use items at certain points. (Reported by Siopilos) 
-PF: N/A
-
 B: ChaosMode casters on caves ratio is off. (Reported by Siopilos)
 PF: Fix rate math for caves, something breaks it.
 

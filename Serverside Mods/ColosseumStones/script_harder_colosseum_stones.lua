@@ -7,6 +7,16 @@ local MOD_NAME, log_message = Mods.init_mod()
 ColosseumStones = ColosseumStones or {}
 ColosseumStones.CONFIG = ColosseumStones.CONFIG or { harder_stones_enabled = false }
 
+-- Entity contexts are torn down when a unit is unregistered (destroyed, despawned or
+-- replaced by another client). EntityAux.queue_command_master() indexes the master
+-- context directly, so a scheduled ability command fired after that point throws
+-- "attempt to index a nil value". These checks are nil-safe for dead/unregistered units.
+local function can_queue_ability(unit)
+    return EntityAux.is_alive_entity(unit)
+        and EntityAux.owned(unit)
+        and EntityAux.has_component_master(unit, "ability")
+end
+
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
     
@@ -27,7 +37,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 EntityAux.queue_command_master(unit, "ability", "execute_ability", command)
             end
             Game.scheduler:repeat_action(5, function()  -- 10 is base
-                if EntityAux.owned(unit) and DamageReceiverComponent.is_alive(unit) and EntityAux.is_alive_entity(unit) then
+                if can_queue_ability(unit) and DamageReceiverComponent.is_alive(unit) then
                     local command = {
                         ability_name = "beam",
                     }
@@ -46,20 +56,27 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 EntityAux.queue_command_master(unit, "ability", "execute_ability", command)
             end
             Game.scheduler:repeat_action(5, function()  -- 10 is base
-                if EntityAux.owned(unit) and DamageReceiverComponent.is_alive(unit) and EntityAux.is_alive_entity(unit) then
+                if can_queue_ability(unit) and DamageReceiverComponent.is_alive(unit) then
                     local command = TempTableFactory:get_map("ability_name", "effects")
                     EntityAux.queue_command_master(unit, "ability", "execute_ability", command)
+                else
+                    return false -- stone is gone; stop rescheduling
                 end
             end)
             Game.scheduler:repeat_action(5, function()  -- 10 is base
-                if EntityAux.owned(unit) and DamageReceiverComponent.is_alive(unit) and EntityAux.is_alive_entity(unit) then
+                if can_queue_ability(unit) and DamageReceiverComponent.is_alive(unit) then
                     local time_in_seconds = 2
                     Game.scheduler:delay_action(time_in_seconds, function()
-                        if Unit.alive(unit) then
+                        -- Re-check at fire time: the stone can be destroyed or replaced during
+                        -- the delay, which clears its entity contexts. queue_command_master
+                        -- would then index a nil context and throw.
+                        if can_queue_ability(unit) then
                             local command = TempTableFactory:get_map("ability_name", "reactive_explosion")
                             EntityAux.queue_command_master(unit, "ability", "execute_ability", command)
                         end
                     end)
+                else
+                    return false -- stone is gone; stop rescheduling
                 end
             end)
         end
@@ -74,7 +91,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 EntityAux.queue_command_master(unit, "ability", "execute_ability", command)
             end
             Game.scheduler:repeat_action(6, function()  -- 8 is base
-                if EntityAux.owned(unit) and DamageReceiverComponent.is_alive(unit) and EntityAux.is_alive_entity(unit) then
+                if can_queue_ability(unit) and DamageReceiverComponent.is_alive(unit) then
                     local command = {
                         ability_name = "freeze_nova",
                     }
@@ -174,7 +191,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 EntityAux.queue_command_master(unit, "ability", "execute_ability", command)
             end
             Game.scheduler:repeat_action(8, function()  -- 6 is base
-                if EntityAux.owned(unit) and DamageReceiverComponent.is_alive(unit) and EntityAux.is_alive_entity(unit) then
+                if can_queue_ability(unit) and DamageReceiverComponent.is_alive(unit) then
                     local command = {
                         ability_name = "summon_twister",
                     }
