@@ -1,7 +1,7 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.3.0"
-local MOD_DESCRIPTION = "Clean custom Quilt Builder override that branches"
+local MOD_VERSION = "1.5.0"
+local MOD_DESCRIPTION = "Clean custom Quilt Builder override that branches and interconnects branches"
 
 local MOD_NAME, log_message = Mods.init_mod()
 Knossos = Knossos or {}
@@ -10,6 +10,7 @@ Knossos.loaded = true
 Knossos.CONFIG = Knossos.CONFIG or {}
 Knossos.CONFIG.enabled = (Knossos.CONFIG.enabled == nil) and true or Knossos.CONFIG.enabled
 Knossos.CONFIG.mode = Knossos.CONFIG.mode or "Small"
+Knossos.CONFIG.interconnect_enabled = (Knossos.CONFIG.interconnect_enabled == nil) and true or Knossos.CONFIG.interconnect_enabled
 
 Knossos.BRANCH_DEFAULTS = {
     enabled               = true,   -- Master toggle for all branching
@@ -24,6 +25,19 @@ Knossos.BRANCH_DEFAULTS = {
     allow_recursive       = false,  -- Whether branch-end encounters can themselves branch
     recursive_chance      = 0.0,    -- Chance (0-1) a branch encounter gets queued for further branching
     max_depth             = 1,      -- Max branch depth (1 = main-path only, 2 = one recursive level, etc.)
+
+    -- Branch interconnection: a branch endpoint can link up with a nearby room instead of dead ending
+    interconnect_enabled            = true,  -- Master toggle for linking branch endpoints together
+    interconnect_dead_end_chance    = 0.5,   -- Chance (0-1) a branch endpoint simply stays a dead end
+    interconnect_max_total          = 4,     -- Max interconnections created per quilt
+    interconnect_max_attempts       = 25,    -- Safety cap on connector attempts per quilt
+    interconnect_max_distance       = 10,    -- Max tile gap between rooms for a connection to be attempted
+    interconnect_min_distance       = 2,     -- Min tile gap (avoids joining walls that already touch)
+    interconnect_max_length         = 18,    -- Max tiles in a single connecting corridor
+    interconnect_room_chance        = 0.35,  -- Chance a connecting corridor places a room along the way
+    interconnect_allow_filler       = false, -- Allow connecting into filler/corridor blocks, not just rooms
+    interconnect_degree_bonus          = 0.35, -- 0-1: how much rooms with more doors are favoured when deciding to connect
+    interconnect_degree_distance_bonus = 1.5,  -- Tile distance discount given to higher-degree connection targets
 }
 
 Knossos.MODE_CONFIGS = Knossos.MODE_CONFIGS or {}
@@ -40,6 +54,17 @@ Knossos.MODE_CONFIGS.small = {
     allow_recursive = false,
     recursive_chance = 0.0,
     max_depth = 1,
+    interconnect_enabled = true,
+    interconnect_dead_end_chance = 0.85,
+    interconnect_max_total = 1,
+    interconnect_max_attempts = 5,
+    interconnect_max_distance = 8,
+    interconnect_min_distance = 2,
+    interconnect_max_length = 10,
+    interconnect_room_chance = 0.15,
+    interconnect_allow_filler = false,
+    interconnect_degree_bonus = 0.2,
+    interconnect_degree_distance_bonus = 0.75,
 }
 
 Knossos.MODE_CONFIGS.medium = {
@@ -54,6 +79,17 @@ Knossos.MODE_CONFIGS.medium = {
     allow_recursive = false,
     recursive_chance = 0.0,
     max_depth = 1,
+    interconnect_enabled = true,
+    interconnect_dead_end_chance = 0.7,
+    interconnect_max_total = 3,
+    interconnect_max_attempts = 10,
+    interconnect_max_distance = 10,
+    interconnect_min_distance = 2,
+    interconnect_max_length = 14,
+    interconnect_room_chance = 0.3,
+    interconnect_allow_filler = false,
+    interconnect_degree_bonus = 0.3,
+    interconnect_degree_distance_bonus = 1.0,
 }
 
 Knossos.MODE_CONFIGS.large = {
@@ -68,6 +104,17 @@ Knossos.MODE_CONFIGS.large = {
     allow_recursive = true,
     recursive_chance = 0.2,
     max_depth = 2,
+    interconnect_enabled = true,
+    interconnect_dead_end_chance = 0.5,
+    interconnect_max_total = 6,
+    interconnect_max_attempts = 16,
+    interconnect_max_distance = 12,
+    interconnect_min_distance = 2,
+    interconnect_max_length = 14,
+    interconnect_room_chance = 0.4,
+    interconnect_allow_filler = false,
+    interconnect_degree_bonus = 0.35,
+    interconnect_degree_distance_bonus = 1.25,
 }
 
 Knossos.MODE_CONFIGS.massive = {
@@ -82,6 +129,17 @@ Knossos.MODE_CONFIGS.massive = {
     allow_recursive = true,
     recursive_chance = 0.5,
     max_depth = 3,
+    interconnect_enabled = true,
+    interconnect_dead_end_chance = 0.35,
+    interconnect_max_total = 12,
+    interconnect_max_attempts = 25,
+    interconnect_max_distance = 14,
+    interconnect_min_distance = 2,
+    interconnect_max_length = 14,
+    interconnect_room_chance = 0.5,
+    interconnect_allow_filler = false,
+    interconnect_degree_bonus = 0.4,
+    interconnect_degree_distance_bonus = 1.5,
 }
 
 Knossos.MODE_CONFIGS.labyrinth = {
@@ -96,6 +154,17 @@ Knossos.MODE_CONFIGS.labyrinth = {
     allow_recursive = true,
     recursive_chance = 1.0,
     max_depth = 5,
+    interconnect_enabled = true,
+    interconnect_dead_end_chance = 0.15,
+    interconnect_max_total = 999,
+    interconnect_max_attempts = 40,
+    interconnect_max_distance = 16,
+    interconnect_min_distance = 2,
+    interconnect_max_length = 14,
+    interconnect_room_chance = 0.55,
+    interconnect_allow_filler = true,
+    interconnect_degree_bonus = 0.5,
+    interconnect_degree_distance_bonus = 2.0,
 }
 
 Knossos.is_enabled = Knossos.CONFIG.enabled
@@ -436,6 +505,12 @@ function Knossos.branch_quilt_builder()
                 self.branch_config[k] = v
             end
         end
+
+        -- Global UI toggle overrides mode/layout settings when explicitly set
+        if Knossos.CONFIG.interconnect_enabled ~= nil then
+            self.branch_config.interconnect_enabled = Knossos.CONFIG.interconnect_enabled
+        end
+
         self.total_branches_spawned = 0
         self.needs_random_exit = false  -- Set true when random_exits is enabled and main path ends
         self.branch_endpoints = {}      -- Track {block, depth} for random exit placement
@@ -520,10 +595,14 @@ function Knossos.branch_quilt_builder()
         -- This ensures the main path has priority on tile supply and grid space
         self:process_branch_queue()
 
-        -- Place random exit if enabled and needed
+        -- Place random exit if enabled and needed (before interconnection so it keeps
+        -- the same endpoint pool / random sequence it would have without interconnection)
         if self.branch_config.random_exits and self.needs_random_exit then
             self:place_random_exit()
         end
+
+        -- Link nearby branch endpoints together (turns some dead ends into loops)
+        self:interconnect_branches()
 
         self:enclose()
     end
@@ -1549,6 +1628,556 @@ function Knossos.branch_quilt_builder()
             end
         end
         -- print("Block sealed successfully")
+    end
+
+    -- =============================================================================================
+    -- Branch Interconnection
+    -- A branch endpoint can either stay a dead end, or be linked to a nearby room/block by
+    -- extending a hallway (optionally with rooms) until the two are joined. This creates loops.
+    -- =============================================================================================
+
+    -- Distance (in tiles) between a point and the bounding box of a block
+    QuiltBuilder.distance_to_block = function (self, x, y, block)
+        local dx = math.max(block.qx - x, x - (block.qx + block.qw - 1), 0)
+        local dy = math.max(block.qy - y, y - (block.qy + block.qh - 1), 0)
+
+        return dx + dy
+    end
+
+    -- Number of free tiles between the bounding boxes of two blocks
+    QuiltBuilder.block_gap_distance = function (self, a, b)
+        local ax1, ay1 = a.qx, a.qy
+        local ax2, ay2 = a.qx + a.qw - 1, a.qy + a.qh - 1
+        local bx1, by1 = b.qx, b.qy
+        local bx2, by2 = b.qx + b.qw - 1, b.qy + b.qh - 1
+
+        local dx = math.max(0, bx1 - ax2 - 1, ax1 - bx2 - 1)
+        local dy = math.max(0, by1 - ay2 - 1, ay1 - by2 - 1)
+
+        return dx + dy
+    end
+
+    -- Quilt tiles know how many of their border cells are doorways. Rooms with more doorways
+    -- can support more connections, so we use their degree to gently favour them.
+    local MAX_QUILT_TILE_DEGREE = 6
+
+    QuiltBuilder.block_degree = function (self, block)
+        return (block.tile and block.tile.degree) or 0
+    end
+
+    QuiltBuilder.degree_weight = function (self, block)
+        return math.min(self:block_degree(block) / MAX_QUILT_TILE_DEGREE, 1)
+    end
+
+    -- Find other blocks close enough to `source_block` to be worth connecting to
+    QuiltBuilder.find_nearby_connect_targets = function (self, source_block, max_dist, min_dist)
+        local config = self.branch_config
+        local allow_filler = config.interconnect_allow_filler
+        local degree_bonus = config.interconnect_degree_distance_bonus or 0
+        local targets = {}
+
+        for _, block in ipairs(self.blocks) do
+            if block ~= source_block and not source_block.neighbor_blocks[block] then
+                if block.is_special or allow_filler then
+                    local dist = self:block_gap_distance(source_block, block)
+
+                    if dist >= min_dist and dist <= max_dist then
+                        targets[#targets + 1] = {
+                            block = block,
+                            distance = dist,
+                            -- Slight discount for rooms with more doorways so hubs are picked more often
+                            score = dist - degree_bonus * self:degree_weight(block),
+                        }
+                    end
+                end
+            end
+        end
+
+        table.sort(targets, function (a, b)
+            if a.score ~= b.score then
+                return a.score < b.score
+            end
+
+            if a.distance ~= b.distance then
+                return a.distance < b.distance
+            end
+
+            return tostring(a.block.name) < tostring(b.block.name)
+        end)
+
+        return targets
+    end
+
+    -- Collect sealed doors on `block` that can be reopened (free cell behind them)
+    QuiltBuilder.collect_openable_doors = function (self, block)
+        local doors = {}
+
+        for dir, bx, by, material, material_type, dir_index in block_border_iter(block.qx, block.qy, block) do
+            if material == "x" and is_walkable(material_type) then
+                local dx, dy = dir_offset(dir)
+                local out_id = xy_to_id(bx + dx, by + dy)
+
+                if not self.grid[out_id] then
+                    doors[#doors + 1] = {
+                        dir = dir,
+                        index = dir_index,
+                        bx = bx,
+                        by = by,
+                        out_x = bx + dx,
+                        out_y = by + dy,
+                    }
+                end
+            end
+        end
+
+        return doors
+    end
+
+    -- Update the cardinalN_open / cardinalN_closed object sets for a door
+    QuiltBuilder.set_door_marker = function (self, block, dir, dir_index, is_open)
+        if not block.object_sets then
+            return
+        end
+
+        local cardinal = dir_to_cardinal(dir)
+        local open_marker = sprintf("%s%d_open", cardinal, dir_index)
+        local closed_marker = sprintf("%s%d_closed", cardinal, dir_index)
+
+        for i = #block.object_sets, 1, -1 do
+            if block.object_sets[i] == open_marker or block.object_sets[i] == closed_marker then
+                table.remove(block.object_sets, i)
+            end
+        end
+
+        table.insert(block.object_sets, is_open and open_marker or closed_marker)
+    end
+
+    -- Reopen a sealed door, keeping the grid and doorway bookkeeping consistent
+    QuiltBuilder.open_door = function (self, block, dir, dir_index, bx, by)
+        local original = block.tile[dir][dir_index]
+
+        if not is_walkable(original) or is_walkable(block[dir][dir_index]) then
+            return false
+        end
+
+        block[dir][dir_index] = original
+
+        local dx, dy = dir_offset(dir)
+        local cell = self.grid[xy_to_id(bx, by)]
+
+        if cell and cell[dir] then
+            cell[dir].material = original
+
+            if block.is_special and not cell[dir].doorway then
+                local doorway = {
+                    qx = bx + dx,
+                    qy = by + dy,
+                    dir = dir,
+                    block = block,
+                    neighbor_doorways = {},
+                    open_cells = {},
+                }
+
+                self.doorway_set[doorway] = true
+                block.doorways = block.doorways or {}
+                table.insert(block.doorways, doorway)
+                cell[dir].doorway = doorway
+            end
+
+            if cell[dir].doorway then
+                local out_id = xy_to_id(bx + dx, by + dy)
+
+                if not self.grid[out_id] then
+                    cell[dir].doorway.open_cells[out_id] = 1
+                end
+            end
+        end
+
+        self:set_door_marker(block, dir, dir_index, true)
+
+        return true
+    end
+
+    -- Seal an open door again (used to roll back failed connection attempts)
+    QuiltBuilder.close_door = function (self, block, dir, dir_index, bx, by)
+        if not is_walkable(block[dir][dir_index]) then
+            return false
+        end
+
+        block[dir][dir_index] = "x"
+
+        local dx, dy = dir_offset(dir)
+        local cell = self.grid[xy_to_id(bx, by)]
+
+        if cell and cell[dir] then
+            cell[dir].material = "x"
+
+            if cell[dir].doorway then
+                cell[dir].doorway.open_cells[xy_to_id(bx + dx, by + dy)] = nil
+            end
+        end
+
+        self:set_door_marker(block, dir, dir_index, false)
+
+        return true
+    end
+
+    -- If a tile placed at <x,y> would touch `target`, make sure that door is open.
+    -- Returns a rollback function on success, nil when there is no door to use there.
+    QuiltBuilder.prepare_target_door = function (self, x, y, target)
+        for dir, bx, by, material, material_type, dir_index in block_border_iter(target.qx, target.qy, target) do
+            local dx, dy = dir_offset(dir)
+
+            if bx + dx == x and by + dy == y then
+                if is_walkable(material) then
+                    return function () end
+                elseif is_walkable(material_type) then
+                    self:open_door(target, dir, dir_index, bx, by)
+
+                    return function ()
+                        self:close_door(target, dir, dir_index, bx, by)
+                    end
+                end
+            end
+        end
+
+        return nil
+    end
+
+    -- Free cells reachable from the open edges of `block`
+    QuiltBuilder.gather_next_steps = function (self, block)
+        local steps = {}
+
+        for dir, bx, by, material in block_border_iter(block.qx, block.qy, block) do
+            if is_walkable(material) then
+                local dx, dy = dir_offset(dir)
+                local nx, ny = bx + dx, by + dy
+
+                if not self.grid[xy_to_id(nx, ny)] then
+                    steps[#steps + 1] = {
+                        dir = dir,
+                        x = nx,
+                        y = ny,
+                        bx = bx,
+                        by = by,
+                    }
+                end
+            end
+        end
+
+        return steps
+    end
+
+    -- Does `block` already touch a block we are allowed to connect to?
+    QuiltBuilder.find_adjacent_connection = function (self, block, source_block, corridor_set, target_set)
+        for dir, bx, by, material in block_border_iter(block.qx, block.qy, block) do
+            if is_walkable(material) then
+                local dx, dy = dir_offset(dir)
+                local neighbor_cell = self.grid[xy_to_id(bx + dx, by + dy)]
+
+                if neighbor_cell then
+                    local other = neighbor_cell.block
+
+                    if other and other ~= block and other ~= source_block and not corridor_set[other] and target_set[other] then
+                        local other_edge = neighbor_cell[INV_DIR[dir]]
+
+                        if other_edge and is_walkable(other_edge.material) then
+                            return {
+                                block = other,
+                            }
+                        end
+                    end
+                end
+            end
+        end
+
+        return nil
+    end
+
+    QuiltBuilder.find_connector_tile = function (self, x, y)
+        local q = {
+            room = false,
+            exit = false,
+            w = "*",
+            h = "*",
+            max_degree = 4,
+        }
+
+        return self:try_find_tile(x, y, q)
+    end
+
+    QuiltBuilder.find_connector_room = function (self, x, y)
+        local q = {
+            room = true,
+            lowest_degree = true,
+            w = "*",
+            h = "*",
+            exclude_tags = {
+                "saferoom",
+            },
+        }
+
+        return self:try_find_tile(x, y, q)
+    end
+
+    -- Remove every block we placed for a failed connection attempt and re-seal the source door
+    QuiltBuilder.cull_connector = function (self, corridor, corridor_set, source_block, door)
+        for i = #corridor, 1, -1 do
+            corridor_set[corridor[i]] = nil
+            self:remove_block(corridor[i])
+        end
+
+        self:close_door(source_block, door.dir, door.index, door.bx, door.by)
+    end
+
+    -- Walk a hallway out of `door` on `source_block` until it joins one of `target_set`
+    QuiltBuilder.build_connector = function (self, source_block, door, target, target_set)
+        local config = self.branch_config
+        -- The engine requires every block to stay within 20 steps of a doorway (a special block),
+        -- and enclose() adds a few rings after us, so keep connecting corridors comfortably short.
+        local MAX_SAFE_CONNECTOR_LENGTH = 14
+        local max_length = math.min(config.interconnect_max_length or MAX_SAFE_CONNECTOR_LENGTH, MAX_SAFE_CONNECTOR_LENGTH)
+        local corridor = {}
+        local corridor_set = {}
+
+        self:open_door(source_block, door.dir, door.index, door.bx, door.by)
+
+        local current = source_block
+
+        for _ = 1, max_length do
+            if self:find_adjacent_connection(current, source_block, corridor_set, target_set) then
+                self:reanalyze_graph()
+
+                return true
+            end
+
+            local steps = self:gather_next_steps(current)
+
+            if #steps == 0 then
+                self:cull_connector(corridor, corridor_set, source_block, door)
+
+                return false
+            end
+
+            for _, step in ipairs(steps) do
+                step.dist = self:distance_to_block(step.x, step.y, target)
+            end
+
+            for i = #steps, 2, -1 do
+                local j = self.randomizer:random(1, i)
+                steps[i], steps[j] = steps[j], steps[i]
+            end
+
+            table.sort(steps, function (a, b)
+                return a.dist < b.dist
+            end)
+
+            local advanced = false
+
+            for _, step in ipairs(steps) do
+                local rollback = self:prepare_target_door(step.x, step.y, target)
+                local tile = self:find_connector_tile(step.x, step.y)
+
+                -- Only place a room when we are not directly bridging into the target
+                if tile and not rollback and self.randomizer:random() < (config.interconnect_room_chance or 0) then
+                    local room = self:find_connector_room(step.x, step.y)
+
+                    if room then
+                        tile = room
+                    end
+                end
+
+                local new_block = tile and self:try_spawning_block_here(step.x, step.y, tile) or nil
+
+                if new_block and new_block.neighbor_blocks[current] then
+                    local connection = self:find_adjacent_connection(new_block, source_block, corridor_set, target_set)
+
+                    corridor[#corridor + 1] = new_block
+                    corridor_set[new_block] = true
+                    current = new_block
+                    advanced = true
+
+                    if connection then
+                        self:reanalyze_graph()
+
+                        return true
+                    end
+
+                    if rollback then
+                        rollback()
+                    end
+
+                    break
+                end
+
+                if new_block then
+                    self:remove_block(new_block)
+                end
+
+                if rollback then
+                    rollback()
+                end
+            end
+
+            if not advanced then
+                self:cull_connector(corridor, corridor_set, source_block, door)
+
+                return false
+            end
+        end
+
+        self:cull_connector(corridor, corridor_set, source_block, door)
+
+        return false
+    end
+
+    -- Try to link a single branch endpoint to one of its nearby neighbours
+    QuiltBuilder.try_interconnect_block = function (self, source_block)
+        local config = self.branch_config
+        local max_dist = config.interconnect_max_distance or 10
+        local min_dist = config.interconnect_min_distance or 2
+        local targets = self:find_nearby_connect_targets(source_block, max_dist, min_dist)
+
+        if #targets == 0 then
+            return false
+        end
+
+        local doors = self:collect_openable_doors(source_block)
+
+        if #doors == 0 then
+            return false
+        end
+
+        local target_set = {}
+
+        for _, target in ipairs(targets) do
+            target_set[target.block] = true
+        end
+
+        local MAX_TARGETS = 5
+        local MAX_DOORS_PER_TARGET = 2
+        local num_targets = math.min(#targets, MAX_TARGETS)
+
+        for ti = 1, num_targets do
+            local target = targets[ti].block
+            local candidates = {}
+
+            for _, door in ipairs(doors) do
+                candidates[#candidates + 1] = {
+                    door = door,
+                    distance = self:distance_to_block(door.out_x, door.out_y, target),
+                }
+            end
+
+            table.sort(candidates, function (a, b)
+                return a.distance < b.distance
+            end)
+
+            local num_candidates = math.min(#candidates, MAX_DOORS_PER_TARGET)
+
+            for ci = 1, num_candidates do
+                if (self._interconnect_attempts_left or 0) <= 0 then
+                    return false
+                end
+
+                self._interconnect_attempts_left = self._interconnect_attempts_left - 1
+
+                if self:build_connector(source_block, candidates[ci].door, target, target_set) then
+                    return true
+                end
+            end
+        end
+
+        return false
+    end
+
+    -- Post-pass: give every branch endpoint a chance to dead end, or to join a nearby room instead
+    QuiltBuilder.interconnect_branches = function (self)
+        local config = self.branch_config
+
+        if not config.enabled or not config.interconnect_enabled then
+            return
+        end
+
+        if #self.branch_endpoints == 0 or #self.blocks == 0 then
+            return
+        end
+
+        local block_set = {}
+
+        for _, block in ipairs(self.blocks) do
+            block_set[block] = true
+        end
+
+        self._interconnect_attempts_left = config.interconnect_max_attempts or 25
+        self.interconnects_created = 0
+
+        local endpoints = {}
+
+        for i, endpoint in ipairs(self.branch_endpoints) do
+            endpoints[i] = endpoint
+        end
+
+        -- Deepest branches get first pick of the open space; among equal depths, favour rooms
+        -- with more doorways since they have more ways to connect (only when the degree boost is on)
+        local degree_ordering = (config.interconnect_degree_bonus or 0) > 0
+
+        table.sort(endpoints, function (a, b)
+            if a.depth ~= b.depth then
+                return a.depth > b.depth
+            end
+
+            if degree_ordering then
+                local degree_a, degree_b = self:block_degree(a.block), self:block_degree(b.block)
+
+                if degree_a ~= degree_b then
+                    return degree_a > degree_b
+                end
+            end
+
+            return tostring(a.block.name) < tostring(b.block.name)
+        end)
+
+        local removed = {}
+
+        for _, endpoint in ipairs(endpoints) do
+            if self.interconnects_created >= (config.interconnect_max_total or 4) then
+                break
+            end
+
+            if self._interconnect_attempts_left <= 0 then
+                break
+            end
+
+            if not block_set[endpoint.block] then
+                removed[endpoint] = true
+            else
+                local dead_end_chance = config.interconnect_dead_end_chance or 0.5
+                local degree_bonus = config.interconnect_degree_bonus or 0
+                -- Rooms with more doorways are nudged a little closer to connecting
+                local eased_chance = dead_end_chance * (1 - degree_bonus * self:degree_weight(endpoint.block))
+
+                if self.randomizer:random() >= eased_chance then
+                    if self:try_interconnect_block(endpoint.block) then
+                        self.interconnects_created = self.interconnects_created + 1
+                        endpoint.block.is_dead_end = nil
+                        removed[endpoint] = true
+                    end
+                end
+            end
+        end
+
+        if self.interconnects_created > 0 then
+            local kept = {}
+
+            for _, endpoint in ipairs(self.branch_endpoints) do
+                if not removed[endpoint] then
+                    kept[#kept + 1] = endpoint
+                end
+            end
+
+            self.branch_endpoints = kept
+        end
     end
 
     QuiltBuilder.enclose = function (self)

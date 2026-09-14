@@ -1,6 +1,6 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.0.0"
+local MOD_VERSION = "1.0.1"
 local MOD_DESCRIPTION = "If more than 1 kill, Trial is failed."
 
 
@@ -8,10 +8,11 @@ local MOD_NAME, log_message = Mods.init_mod(nil, "mods/Peacemonger/Peacemonger.l
 Peacemonger = Peacemonger or {}
 
 Peacemonger.check_kills = function(kills)
-    if kills > 1 then
-        AddUtility.show_text("top", "Peacemonger Trial Failed: " .. kills .. " kills.", 5, "purple", 48, "PeacemongerTrial")
-        AddUtility.send_text_chat(MOD_NAME,"Peacemonger Trial Failed: " .. kills .. " kills.")
-        
+    if kills == 1 then
+        AddUtility.show_text("top", "Peacemonger Trial: " .. kills .. " kill(s).", 5, "purple", 48, "PeacemongerTrial")
+
+        AddUtility.send_text_chat(MOD_NAME,"Peacemonger Trial: " .. kills .. " kill(s).")
+        AddUtility.send_text_chat(MOD_NAME,"Peacemonger Trial: No more kills allowed.")
     end
 end
 
