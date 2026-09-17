@@ -1,11 +1,11 @@
 -- =================================================================================================
 -- Author: SavageDuck26
--- Version: 1.8
+-- Version: 1.9
 -- Purpose: Makes enemies spawn traps on death.
 -- =================================================================================================
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.8.0"
+local MOD_VERSION = "1.9.0"
 local MOD_DESCRIPTION = "Makes enemies spawn traps on death"
 
 
@@ -122,6 +122,53 @@ local function schedule_despawn(unit, unit_path)
     end)
 end
 -- ============================================================
+-- Elemental detonation
+-- The elemental orbs (ice/poison/shockwave) are native "carry" game objects and their
+-- native on_death_authorative runs the "explode" ability. Those native settings/hooks
+-- are left completely untouched: hooking them inside require() detonated EVERY elemental
+-- in the game, including the ones the base game spawns for its own enemies and traps.
+-- Instead, only the elementals that THIS mod spawns are detonated, by applying a lethal
+-- hit to the exact unit we spawned ourselves (which runs the native explode ability).
+local ELEMENTAL_DETONATE_DELAYS = {
+    ["gameobjects/carry/elemental_ice"] = 0.1,
+    ["gameobjects/carry/elemental_poison"] = 0,
+    ["gameobjects/carry/elemental_shockwave"] = 0,
+}
+
+local function detonate_elemental(unit, unit_path)
+    local delay = ELEMENTAL_DETONATE_DELAYS[unit_path]
+
+    if not delay or not unit then
+        return
+    end
+
+    Game.scheduler:delay_action(delay, function ()
+        if not unit or not Unit.alive(unit) or not EntityAux.owned(unit) then
+            return
+        end
+
+        -- Multiplayer safety: protected position call
+        local success, position = pcall(Unit.world_position, unit, 0)
+        if not success or not position then
+            return
+        end
+
+        local success2, forward = pcall(UnitAux.unit_forward, unit)
+        local direction = success2 and forward or Vector3(0, 1, 0)
+
+        EntityAux.call_interface(unit, "i_hit_receiver", "hit", {
+            damage_amount = 99999,
+            settings = {
+                hit_react = "push",
+            },
+            modifiers = {},
+            direction = Vector3Aux.box_temp(-direction),
+            position = Vector3Aux.box_temp(position),
+            random_seed = math.random() * 1000,
+        })
+    end)
+end
+-- ============================================================
 local function set_on_death_result_to_drop_grid(result, drop_spec, chance, max_i, max_j, spacing)
     if not result then return end
 
@@ -155,6 +202,7 @@ local function set_on_death_result_to_drop_grid(result, drop_spec, chance, max_i
                         local spawn_pos = position + offset
                         local dropped_unit = entity_spawner:spawn_entity(drop, spawn_pos, rotation, nil)
                         NetworkUnitSynchronizer:add(dropped_unit)
+                        detonate_elemental(dropped_unit, drop)
                     end
                 end
             end
@@ -192,6 +240,9 @@ local function set_on_death_result_to_drop(result, drop_spec, chance)
                 local dropped_unit = entity_spawner:spawn_entity(drop, position, rotation, nil)
                 NetworkUnitSynchronizer:add(dropped_unit)
 
+                -- Detonate the elemental we just dropped (no-op for non-elemental drops)
+                detonate_elemental(dropped_unit, drop)
+
                 if drop == "gameobjects/traps/trap_spinner_4c_1blades" then
                     if EntityAux.owned(dropped_unit) then
                         schedule_despawn(dropped_unit, drop)
@@ -211,8 +262,6 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
     end
 
     if path == "gameobjects/carry/elemental_shockwave" and result then
-        local LIFETIME = 0
-
         -- Shockwave confusion settings must apply on ALL clients that have this mod,
         -- not just the host. The base game broadcasts the explode ability to all clients
         -- via rpc_execute_ability. Each client independently runs the sphere physics query
@@ -230,37 +279,6 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 duration = confusion_duration,
             },
         }
-
-        result.on_entity_registered = function (unit)
-            if EntityAux.owned(unit) then
-
-                Game.scheduler:delay_action(LIFETIME, function ()
-                    if not unit or not Unit.alive(unit) then
-                        return
-                    end
-                    
-                    -- Multiplayer safety: protected position call
-                    local success, position = pcall(Unit.world_position, unit, 0)
-                    if not success or not position then
-                        return
-                    end
-                    
-                    local success2, forward = pcall(UnitAux.unit_forward, unit)
-                    local direction = success2 and forward or Vector3(0, 1, 0)
-                    
-                    EntityAux.call_interface(unit, "i_hit_receiver", "hit", {
-                        damage_amount = 99999,
-                        settings = {
-                            hit_react = "push",
-                        },
-                        modifiers = {},
-                        direction = Vector3Aux.box_temp(-direction),
-                        position = Vector3Aux.box_temp(position),
-                        random_seed = math.random() * 1000,
-                    })
-                end)
-            end
-        end
     end
 
     if not _G.is_host_ducks_mods then
@@ -381,74 +399,6 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         set_on_death_result_to_drop(result, {"gameobjects/carry/elemental_ice"}, GraveTrappers.CONFIG.drop_chances.Force)
     end
     -- =========================================================================================================
-    if path == "gameobjects/carry/elemental_ice" and result then
-        local LIFETIME = 0.1
-
-        result.on_entity_registered = function (unit)
-            if EntityAux.owned(unit) then
-
-                Game.scheduler:delay_action(LIFETIME, function ()
-                    if not unit or not Unit.alive(unit) then
-                        return
-                    end
-                    
-                    -- Multiplayer safety: protected position call
-                    local success, position = pcall(Unit.world_position, unit, 0)
-                    if not success or not position then
-                        return
-                    end
-                    
-                    local success2, forward = pcall(UnitAux.unit_forward, unit)
-                    local direction = success2 and forward or Vector3(0, 1, 0)
-                    
-                    EntityAux.call_interface(unit, "i_hit_receiver", "hit", {
-                        damage_amount = 99999,
-                        settings = {
-                            hit_react = "push",
-                        },
-                        modifiers = {},
-                        direction = Vector3Aux.box_temp(-direction),
-                        position = Vector3Aux.box_temp(position),
-                        random_seed = math.random() * 1000,
-                    })
-                end)
-            end
-        end
-    end
-    if path == "gameobjects/carry/elemental_poison" and result then
-        local LIFETIME = 0
-        
-        result.on_entity_registered = function (unit)
-            if EntityAux.owned(unit) then
-
-                Game.scheduler:delay_action(LIFETIME, function ()
-                    if not unit or not Unit.alive(unit) then
-                        return
-                    end
-                    
-                    -- Multiplayer safety: protected position call
-                    local success, position = pcall(Unit.world_position, unit, 0)
-                    if not success or not position then
-                        return
-                    end
-                    
-                    local success2, forward = pcall(UnitAux.unit_forward, unit)
-                    local direction = success2 and forward or Vector3(0, 1, 0)
-                    
-                    EntityAux.call_interface(unit, "i_hit_receiver", "hit", {
-                        damage_amount = 99999,
-                        settings = {
-                            hit_react = "push",
-                        },
-                        modifiers = {},
-                        direction = Vector3Aux.box_temp(-direction),
-                        position = Vector3Aux.box_temp(position),
-                        random_seed = math.random() * 1000,
-                    })
-                end)
-            end
-        end
-    end
     -- Poison gas cloud - this is what actually does the damage/effects
     if path == "gameobjects/carry/elemental_poison_gascloud" and result then
         local affect_enemies = GraveTrappers.CONFIG.affect_enemies or false

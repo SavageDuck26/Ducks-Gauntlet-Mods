@@ -23,6 +23,14 @@ local function get_projectile_chance()
     return 0.25
 end
 
+-- Helper function to get spider queen summon chance
+local function get_spider_queen_chance()
+    if Summoners.CONFIG.summoners and Summoners.CONFIG.summoners.grunt_shaman then
+        return Summoners.CONFIG.summoners.grunt_shaman.spider_queen_chance or 0.15
+    end
+    return 0.15
+end
+
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
@@ -87,12 +95,15 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 },
                 on_enter = {
                     custom_callback = function (component, unit, ability)
-                        local entity_spawner = FlowCallbacks.state_game.entity_spawner
-                        local position = Unit.world_position(unit, 0)
-                        local rotation = Unit.world_rotation(unit, 0)
-                        
-                        local spawn = entity_spawner:spawn_entity("spider_queen", position, rotation)
-                        NetworkUnitSynchronizer:add(spawn)
+                        if not is_grunt_shaman_enabled() then return end
+                        if math.random() < get_spider_queen_chance() then
+                            local entity_spawner = FlowCallbacks.state_game.entity_spawner
+                            local position = Unit.world_position(unit, 0)
+                            local rotation = Unit.world_rotation(unit, 0)
+
+                            local spawn = entity_spawner:spawn_entity("spider_queen", position, rotation)
+                            NetworkUnitSynchronizer:add(spawn)
+                        end
                     end,
                 },
                 on_exit = {

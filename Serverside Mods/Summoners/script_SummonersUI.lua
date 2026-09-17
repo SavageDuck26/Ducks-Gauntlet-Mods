@@ -26,6 +26,7 @@ Summoners.CONFIG = Summoners.CONFIG or {
         grunt_shaman = {
             enabled = true,
             projectile_chance = 0.25,
+            spider_queen_chance = 0.15,
         },
         skeleton_commander = {
             enabled = true,
@@ -71,6 +72,7 @@ local SUMMONER_DATA = {
         name = "Grunt Shaman", 
         settings = {
             { key = "projectile_chance", label = "Projectile Spawn", spawn = "Homing Skull" },
+            { key = "spider_queen_chance", label = "Buff Spawner Spawn", spawn = "Spider Queen" },
         }
     },
     { 
@@ -317,7 +319,7 @@ local function create_summoners_config_ui()
             {
                 bg_img = "menu_standard_background_stone",
                 position = {"center", "center"},
-                size = {900, 700},
+                size = {900, 800},
                 type = "container",
                 children = main_children
             }
