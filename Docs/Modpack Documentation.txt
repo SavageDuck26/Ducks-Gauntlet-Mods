@@ -1,22 +1,18 @@
 Ducks Modpack Documentation
 This is a full compilation of the descriptions of my mods. Any questions you have, feel free to message or ping me. I love making these mods and plan to continue doing so for a long while.
 
-Tags you may see attached to my mods are below. As with all mods: use at your own risk.
-FF: Fully Functional. (Working as intended with minimal or no known bugs)
-PNF: Partially Non Functional. (Issues not yet resolved, may be unstable)
-ID: In Development. (Needing testing/not finished/will likely cause crashes)
-NT: Needs Testing. (Usually for new or just updated mods)
+As with all mods: use at your own risk.
 
 Credits:
 Mod Contributors: Skapp, Hoyt, Kryptic.
-Mod Testers: Siopilos, Mitch, Ky1, JMFC77, Choco, Windmill, masterslay, Kryptic.
+Mod Testers: Siopilos, Mitch, Ky1, JMFC77, Choco, Windmill, masterslay, Kryptic, SealsOMG.
 
 Mod Descriptions:
 AddUtility: This is REQUIRED for some other mods to work. The mod adds utility checks like host checking and many bug fixes for other mods, as well as compatibility features for mods like Alliances.
 
 Clientside Mods:
 - Alliances: Randomizes all enemy spawns in the game into other enemies. 
-- Knossos: Adds branching rooms to Endless mode.
+- Knossos: Adds branching rooms to Endless mode, that can now interconnect dead ends to make loops.
 - SetSeedEndless: Causes all Endless seed RNG to follow the floor number instead of being randomized. (Requested by SealsOMG)
 
 Local Mods:
@@ -24,7 +20,7 @@ Local Mods:
 - CharacterSelect: Allows you to change your character mid game. Do this by opening the menu in game and pressing “F3” for keyboard or “R2” for controller.
 - Doppelgangers: Allows multiple of the same hero to be picked at once, played at once, and hotjoined with.
     (DO NOT USE THE SAME CAPE AS ANOTHER DOPPELGANGER)
-    (Do NOT use more than one player on your device, not more than 1 local player.)
+    (Do NOT use more than one player on your device, not more than one local player.)
 - DucksAddons: Adds some fun easter eggs and comments to the text of the game in the tips, endless shop, and loadscreen.
 - DucksUI: Adds a main menu choice to change the config settings for any mod with a config that is made by me (Duck). These settings autosave on menu exit.
 - FragileHeroes: Causes players to die immediately from any source of damage taken. (Requested by Lein)
@@ -46,8 +42,8 @@ Serverside Mods:
 - StrongerEnemies: Gives enemies abilities from different things in the game, making them much more difficult to defeat.
 - Summoners(UI): Gives enemies the ability to summon other enemies.
     Crypt Priest summons: Skeleton Warrior, Necromancer.
-    Crypt Skeleton Commander summons: Lich
-    Caves Shaman summons: Orc Juggernaut, Spider Queen.
+    Crypt Skeleton Commander summons: Lich (Where arrow lands).
+    Caves Shaman summons: Homing Skull, Spider Queen.
     Lava Sorcerer summons: Cultist Armor, Demon Heavy (Eye).
     Lava Cultist Zealot summon: Demon Melee (On death).
 

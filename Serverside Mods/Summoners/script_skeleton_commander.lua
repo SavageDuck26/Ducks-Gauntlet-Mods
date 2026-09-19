@@ -29,7 +29,6 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
     if path == "characters/skeleton_commander/skeleton_commander" and result and _G.is_host_ducks_mods == true then
         if result.abilities then
             -- Modify arrow_lob to spawn a lich at the end (conditionally)
-            local original_arrow_lob = result.abilities.arrow_lob
             result.abilities.arrow_lob = {
                 animation = "attack_lob",
                 duration = 100,
@@ -44,17 +43,33 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                         time = 40,
                     },
                 },
-                spawn_entities = is_skeleton_commander_enabled() and math.random() < get_arrow_lob_chance() and {
-                    {
-                        spawn_ai_monster = true,
-                        spawn_info_key = "default",
-                        time = 80,
-                        unit_path = "lich",
-                        use_target_position = true,
-                    },
-                } or nil,
                 events = {
                     {
+                        on_enter_custom = function (event_handler, event)
+                            local unit = event.owner_unit
+
+                            if not EntityAux.owned(unit) then
+                                return
+                            end
+
+                            if not is_skeleton_commander_enabled() then
+                                return
+                            end
+
+                            if math.random() < get_arrow_lob_chance() then
+                                -- The lob targets a position, so the lich is summoned where the arrow lands.
+                                -- Box the pose now: engine vectors/quaternions are recycled scratch buffers
+                                -- and the spawn is deferred, so plain numbers are what survives the wait.
+                                local position = Vector3Aux.box_copy({}, event.target_position_box)
+                                local rotation = QuaternionAux.box({}, Unit.world_rotation(unit, 0))
+
+                                AddUtility.delay_action(1.25, function()
+                                    local entity_spawner = FlowCallbacks.state_game.entity_spawner
+                                    local spawn = entity_spawner:spawn_entity("lich", Vector3Aux.unbox(position), QuaternionAux.unbox(rotation))
+                                    NetworkUnitSynchronizer:add(spawn)
+                                end)
+                            end
+                        end,
                         angle = 30,
                         collision_filter = "floor_only",
                         damage_amount = 0,

@@ -9,80 +9,295 @@ RandomUrns = RandomUrns or {}
 RandomUrns.loaded = RandomUrns.loaded or false
 
 RandomUrns.gold_drops = RandomUrns.gold_drops or {}
-RandomUrns.props_drops = RandomUrns.props_drops or {}
-RandomUrns.explosive_drops = RandomUrns.explosive_drops or {}
 
 -- Settings stored directly on RandomUrns
-RandomUrns.CONFIG = RandomUrns.CONFIG or { drop_types = { carry_barrels = true, blue_potions = true, elemental_haste = true, elemental_heal = true }, normal_drops = true, old_drops = false, explosive_only_props = false, drop_chance = 0.33 }
+RandomUrns.CONFIG = RandomUrns.CONFIG or { drop_chance_small = 0.01, drop_chance_big = 0.20, small_props_enabled = true, big_props_enabled = true, drop_types = {}, drop_weights = {} }
 
 local current_randomurns_config_widget = nil
 
--- Function to update the drop tables based on current config
-function RandomUrns.update_drop_tables()
-    RandomUrns.gold_drops = {}
-    
-    if RandomUrns.CONFIG.drop_types.carry_barrels then
-        table.insert(RandomUrns.gold_drops, "gameobjects/carry/carry_barrel_crypt")
+function RandomUrns.load_config()
+    -- Pre-5.1 saves kept a single drop_chance for the small props
+    if RandomUrns.CONFIG.drop_chance ~= nil then
+        RandomUrns.CONFIG.drop_chance_small = RandomUrns.CONFIG.drop_chance
+        RandomUrns.CONFIG.drop_chance = nil
     end
-    
-    if RandomUrns.CONFIG.drop_types.blue_potions then
-        table.insert(RandomUrns.gold_drops, "gameobjects/potions/potion_blue")
-    end
-    
-    if RandomUrns.CONFIG.drop_types.elemental_haste then
-        table.insert(RandomUrns.gold_drops, "gameobjects/carry/elemental_haste")
-    end
-    
-    if RandomUrns.CONFIG.drop_types.elemental_heal then
-        table.insert(RandomUrns.gold_drops, "gameobjects/carry/elemental_heal")
-    end
-    
-    -- Ensure we always have at least one item to prevent errors
-    if #RandomUrns.gold_drops == 0 then
-        RandomUrns.gold_drops = {"gameobjects/gold/pile_small"}
-    end
+
+    RandomUrns.update_drop_tables()
 end
 
--- Initialize drop tables on load
-RandomUrns.update_drop_tables()
-
--- Function to update radio button states (for when loading from config)
-function RandomUrns.update_radio_buttons()
-    if not current_randomurns_config_widget then
+-- Refresh the weight number labels (called after a slider moves or a reload)
+function RandomUrns.update_weight_displays()
+    if not current_randomurns_config_widget or not current_randomurns_config_widget.get then
         return
     end
-    
-    local normal_radio = current_randomurns_config_widget:get("special_normal_radio")
-    local explosive_radio = current_randomurns_config_widget:get("special_explosive_radio")
-    local old_radio = current_randomurns_config_widget:get("special_old_drops_radio")
-    
-    if normal_radio then
-        normal_radio:set_checked(RandomUrns.CONFIG.normal_drops)
-    end
-    
-    if explosive_radio then
-        explosive_radio:set_checked(RandomUrns.CONFIG.explosive_only_props)
-    end
 
-    if old_radio then
-        old_radio:set_checked(RandomUrns.CONFIG.old_drops)
+    for _, entry in ipairs(RandomUrns.drop_table) do
+        local widget = current_randomurns_config_widget:get(entry.id .. "_weight_value")
+        if widget and widget.set_text then
+            widget:set_text(tostring(RandomUrns.CONFIG.drop_weights[entry.id] or 1))
+        end
     end
 end
 
--- Function to sync from config structure (used when loading from JSON)
-function RandomUrns.update_from_config()
-    -- Update the drop tables
-    RandomUrns.update_drop_tables()
-    
-    -- Update UI if it's open
-    RandomUrns.update_radio_buttons()
-end
-
-function RandomUrns.load_config()
-    RandomUrns.update_drop_tables()
+-- One drop row: enable checkbox, name, weight slider and weight value
+local function create_drop_row(entry, x, y)
+    return {
+        layout = "horizontal",
+        spacing = 12,
+        type = "container",
+        position = {x, y},
+        children = {
+            {
+                checked = RandomUrns.CONFIG.drop_types[entry.id],
+                id = entry.id .. "_checkbox",
+                type = "checkbox",
+                size = {35, 35},
+                on = {
+                    clicked = function()
+                        RandomUrns.CONFIG.drop_types[entry.id] = not RandomUrns.CONFIG.drop_types[entry.id]
+                        RandomUrns.update_drop_tables()
+                        RandomUrns.hide_config()
+                        RandomUrns.show_config()
+                    end
+                }
+            },
+            {
+                text_align = "left",
+                type = "label",
+                text = entry.label,
+                font_size = 18,
+                color = "white",
+                size = {175, 35}
+            },
+            {
+                type = "label",
+                text = "Weight:",
+                font_size = 16,
+                color = "yellow",
+                size = {60, 35}
+            },
+            {
+                id = entry.id .. "_weight_slider",
+                type = "slider",
+                inherit = "slider",
+                min = 1,
+                max = 4.1,
+                value = RandomUrns.CONFIG.drop_weights[entry.id] or 1,
+                size = {120, 35},
+                on = {
+                    changed = function(widget, value)
+                        RandomUrns.CONFIG.drop_weights[entry.id] = math.max(1, math.min(4, math.floor(value + 0.5)))
+                        RandomUrns.update_drop_tables()
+                        RandomUrns.update_weight_displays()
+                    end
+                }
+            },
+            {
+                id = entry.id .. "_weight_value",
+                type = "label",
+                text = tostring(RandomUrns.CONFIG.drop_weights[entry.id] or 1),
+                font_size = 18,
+                color = "white",
+                size = {30, 35}
+            }
+        }
+    }
 end
 
 local function create_randomurns_config_ui()
+    -- Two columns: consumables/orbs on the left, gold and keys on the right.
+    local drop_rows = {}
+    for i, entry in ipairs(RandomUrns.drop_table) do
+        local x = (i <= 6) and "center - 250" or "center + 250"
+        local row = (i <= 6) and i or (i - 6)
+        table.insert(drop_rows, create_drop_row(entry, x, "top + " .. (225 + (row - 1) * 35)))
+    end
+
+    local main_children = {
+        -- Title
+        {
+            id = "randomurns_config_title",
+            type = "label",
+            text = "RandomUrns Config",
+            font_size = 32,
+            color = "white",
+            position = {"center", "top + 30"},
+            text_align = "center"
+        },
+        -- Small Prop Drop Chance toggle and slider
+        {
+            layout = "horizontal",
+            spacing = 20,
+            type = "container",
+            position = {"center", "top + 72"},
+            children = {
+                {
+                    type = "label",
+                    text = "Small Prop Drop Chance:",
+                    font_size = 22,
+                    color = "yellow",
+                    size = {280, 55},
+                    text_align = "left"
+                },
+                {
+                    checked = RandomUrns.CONFIG.small_props_enabled,
+                    id = "small_props_enabled_checkbox",
+                    type = "checkbox",
+                    text = "Enabled",
+                    color = "white",
+                    font_size = 20,
+                    size = {140, 40},
+                    on = {
+                        clicked = function()
+                            RandomUrns.CONFIG.small_props_enabled = not RandomUrns.CONFIG.small_props_enabled
+                            RandomUrns.hide_config()
+                            RandomUrns.show_config()
+                        end
+                    }
+                },
+                {
+                    id = "urns_dropchance_slider",
+                    type = "slider",
+                    inherit = "slider",
+                    min = 0,
+                    max = 1,
+                    value = RandomUrns.CONFIG.drop_chance_small or 0.01,
+                    size = {320, 55},
+                    on = {
+                        changed = function(widget, value)
+                            local rounded_value = math.floor(value * 100 + 0.5) / 100
+                            RandomUrns.CONFIG.drop_chance_small = rounded_value
+                            local value_label = current_randomurns_config_widget and current_randomurns_config_widget:get("urns_dropchance_value")
+                            if value_label and value_label.set_text then
+                                value_label:set_text(string.format("%d%%", math.floor((rounded_value or 0) * 100 + 0.5)))
+                            end
+                        end
+                    }
+                },
+                {
+                    id = "urns_dropchance_value",
+                    type = "label",
+                    text = string.format("%d%%", math.floor(((RandomUrns.CONFIG.drop_chance_small or 0.01) * 100) + 0.5)),
+                    font_size = 24,
+                    color = "white",
+                    size = {80, 55},
+                    text_align = "left"
+                }
+            }
+        },
+        -- Big Prop Drop Chance toggle and slider
+        {
+            layout = "horizontal",
+            spacing = 20,
+            type = "container",
+            position = {"center", "top + 132"},
+            children = {
+                {
+                    type = "label",
+                    text = "Big Prop Drop Chance:",
+                    font_size = 22,
+                    color = "yellow",
+                    size = {280, 55},
+                    text_align = "left"
+                },
+                {
+                    checked = RandomUrns.CONFIG.big_props_enabled,
+                    id = "big_props_enabled_checkbox",
+                    type = "checkbox",
+                    text = "Enabled",
+                    color = "white",
+                    font_size = 20,
+                    size = {140, 40},
+                    on = {
+                        clicked = function()
+                            RandomUrns.CONFIG.big_props_enabled = not RandomUrns.CONFIG.big_props_enabled
+                            RandomUrns.hide_config()
+                            RandomUrns.show_config()
+                        end
+                    }
+                },
+                {
+                    id = "big_dropchance_slider",
+                    type = "slider",
+                    inherit = "slider",
+                    min = 0,
+                    max = 1,
+                    value = RandomUrns.CONFIG.drop_chance_big or 0.20,
+                    size = {320, 55},
+                    on = {
+                        changed = function(widget, value)
+                            local rounded_value = math.floor(value * 100 + 0.5) / 100
+                            RandomUrns.CONFIG.drop_chance_big = rounded_value
+                            local value_label = current_randomurns_config_widget and current_randomurns_config_widget:get("big_dropchance_value")
+                            if value_label and value_label.set_text then
+                                value_label:set_text(string.format("%d%%", math.floor((rounded_value or 0) * 100 + 0.5)))
+                            end
+                        end
+                    }
+                },
+                {
+                    id = "big_dropchance_value",
+                    type = "label",
+                    text = string.format("%d%%", math.floor(((RandomUrns.CONFIG.drop_chance_big or 0.20) * 100) + 0.5)),
+                    font_size = 24,
+                    color = "white",
+                    size = {80, 55},
+                    text_align = "left"
+                }
+            }
+        },
+        -- Drop pool title
+        {
+            id = "drop_pool_title",
+            type = "label",
+            text = "Drop Pool:",
+            font_size = 24,
+            color = "yellow",
+            position = {"center", "top + 195"},
+            text_align = "center"
+        },
+
+        -- Instructions
+        {
+            id = "instructions",
+            type = "label",
+            text = "Big Props: boxes, barrels, vases, spider eggs, urns and goldrocks.",
+            font_size = 20,
+            color = "white",
+            position = {"center", "top + 455"},
+            text_align = "center"
+        },
+        {
+            id = "instructions",
+            type = "label",
+            text = "Small Props: every other smashable. Weight 1 is the most common drop, 4 the rarest.",
+            font_size = 20,
+            color = "white",
+            position = {"center", "top + 485"},
+            text_align = "center"
+        },
+        -- Back button
+        {
+            id = "randomurns_back_button",
+            type = "button",
+            text = "Back",
+            font_size = 20,
+            color = "white",
+            position = {"center", "bottom - 40"},
+            size = {200, 45},
+            style = "button_standard",
+            on = {
+                clicked = function()
+                    RandomUrns.hide_config()
+                end
+            }
+        }
+    }
+
+    for _, row in ipairs(drop_rows) do
+        table.insert(main_children, row)
+    end
+
     return {
         css = "gui/default_css",
         id = "randomurns_config_ui",
@@ -105,310 +320,7 @@ local function create_randomurns_config_ui()
                 position = {"center", "center"},
                 size = {1000, 600},
                 type = "container",
-                children = {
-                    -- Title
-                    {
-                        id = "randomurns_config_title",
-                        type = "label",
-                        text = "RandomUrns Config",
-                        font_size = 32,
-                        color = "white",
-                        position = {"center", "top + 30"},
-                        text_align = "center"
-                    },
-                    -- Special Props Section
-                    {
-                        id = "special_props_title",
-                        type = "label",
-                        text = "Regular Props (Boxes, Torches, Spider Eggs):",
-                        font_size = 22,
-                        color = "yellow",
-                        position = {"center + 210", "top + 80"},
-                        text_align = "center"
-                    },
-                    -- Special props mode selection (radio buttons)
-                    {
-                        layout = "horizontal",
-                        spacing = 30,
-                        type = "container",
-                        position = {"center + 210", "top + 110"},
-                        children = {
-                            {
-                                checked = (RandomUrns.CONFIG.normal_drops),
-                                id = "special_normal_radio",
-                                type = "radiobutton",
-                                text = "Normal Drops",
-                                size = {150, 40},
-                                font_size = 18,
-                                on = {
-                                    clicked = function()
-                                        RandomUrns.CONFIG.normal_drops = true
-                                        RandomUrns.CONFIG.explosive_only_props = false
-                                        RandomUrns.CONFIG.old_drops = false
-                                        RandomUrns.update_drop_tables()
-                                        RandomUrns.hide_config()
-                                        RandomUrns.show_config()
-                                    end
-                                }
-                            },
-                            {
-                                checked = (RandomUrns.CONFIG.explosive_only_props),
-                                id = "special_explosive_radio",
-                                type = "radiobutton",
-                                text = "Explosive Only",
-                                color = "red",
-                                size = {150, 40},
-                                font_size = 18,
-                                on = {
-                                    clicked = function()
-                                        RandomUrns.CONFIG.explosive_only_props = true
-                                        RandomUrns.CONFIG.normal_drops = false
-                                        RandomUrns.CONFIG.old_drops = false
-                                        RandomUrns.update_drop_tables()
-                                        RandomUrns.hide_config()
-                                        RandomUrns.show_config()
-                                    end
-                                }
-                            },
-                            -- ===================================================================================
-                            {
-                                checked = (RandomUrns.CONFIG.old_drops),
-                                id = "special_old_drops_radio",
-                                type = "radiobutton",
-                                text = "Legacy Drops",
-                                size = {150, 40},
-                                font_size = 18,
-                                on = {
-                                    clicked = function()
-                                        RandomUrns.CONFIG.old_drops = true
-                                        RandomUrns.CONFIG.normal_drops = false
-                                        RandomUrns.CONFIG.explosive_only_props = false
-                                        RandomUrns.update_drop_tables()
-                                        RandomUrns.hide_config()
-                                        RandomUrns.show_config()
-                                    end
-                                }
-                            }
-                        }
-                    },
-                    -- Prop Drop Chance label (above slider)
-                    {
-                        id = "urns_dropchance_label",
-                        type = "label",
-                        text = "Prop Drop Chance:",
-                        font_size = 24,
-                        color = "yellow",
-                        position = {"left + 60", "top + 70"},
-                        text_align = "left"
-                    },
-                    -- Drop Chance Slider Section (top-left)
-                    {
-                        layout = "horizontal",
-                        spacing = 15,
-                        type = "container",
-                        position = {"left + 25", "top + 100"},
-                        children = {
-                            {
-                                id = "urns_dropchance_slider",
-                                type = "slider",
-                                inherit = "slider",
-                                min = 0,
-                                max = 1,
-                                value = RandomUrns.CONFIG.drop_chance or 0.33,
-                                size = {315, 50},
-                                on = {
-                                    changed = function(widget, value)
-                                        -- Round to hundredths place
-                                        local rounded_value = math.floor(value * 100 + 0.5) / 100
-                                        RandomUrns.CONFIG.drop_chance = rounded_value
-                                        local value_label = current_randomurns_config_widget and current_randomurns_config_widget:get("urns_dropchance_value")
-                                        if value_label and value_label.set_text then
-                                            value_label:set_text(string.format("%d%%", math.floor((rounded_value or 0) * 100 + 0.5)))
-                                        end
-                                    end
-                                }
-                            },
-                            {
-                                id = "urns_dropchance_value",
-                                type = "label",
-                                text = string.format("%d%%", math.floor(((RandomUrns.CONFIG.drop_chance or 0.33) * 100) + 0.5)),
-                                font_size = 24,
-                                color = "white",
-                                size = {90, 55},
-                                text_align = "left"
-                            }
-                        }
-                    },
-                    -- Regular Drops Section
-                    {
-                        id = "regular_drops_title",
-                        type = "label",
-                        text = "Regular Urns & Goldrocks Drops:",
-                        font_size = 24,
-                        color = "yellow",
-                        position = {"center", "top + 200"},
-                        text_align = "center"
-                    },
-                    -- Carry Barrels checkbox
-                    {
-                        layout = "horizontal",
-                        spacing = 10,
-                        type = "container",
-                        position = {"center", "top + 230"},
-                        children = {
-                            {
-                                checked = RandomUrns.CONFIG.drop_types.carry_barrels,
-                                id = "carry_barrels_checkbox",
-                                type = "checkbox",
-                                size = {40, 40},
-                                on = {
-                                    clicked = function()
-                                        RandomUrns.CONFIG.drop_types.carry_barrels = not RandomUrns.CONFIG.drop_types.carry_barrels
-                                        RandomUrns.update_drop_tables()
-                                        RandomUrns.hide_config()
-                                        RandomUrns.show_config()
-                                    end
-                                }
-                            },
-                            {
-                                text_align = "left",
-                                type = "label",
-                                text = "Explosive Barrels",
-                                font_size = 20,
-                                color = "white",
-                                size = {120, 25}
-                            }
-                        }
-                    },
-                    -- Blue Potions checkbox
-                    {
-                        layout = "horizontal",
-                        spacing = 10,
-                        type = "container",
-                        position = {"center", "top + 265"},
-                        children = {
-                            {
-                                checked = RandomUrns.CONFIG.drop_types.blue_potions,
-                                id = "blue_potions_checkbox",
-                                type = "checkbox",
-                                size = {40, 40},
-                                on = {
-                                    clicked = function()
-                                        RandomUrns.CONFIG.drop_types.blue_potions = not RandomUrns.CONFIG.drop_types.blue_potions
-                                        RandomUrns.update_drop_tables()
-                                        RandomUrns.hide_config()
-                                        RandomUrns.show_config()
-                                    end
-                                }
-                            },
-                            {
-                                text_align = "left",
-                                type = "label",
-                                text = "Potions",
-                                font_size = 20,
-                                color = "white",
-                                size = {120, 25}
-                            }
-                        }
-                    },
-                    -- Elemental Haste checkbox
-                    {
-                        layout = "horizontal",
-                        spacing = 10,
-                        type = "container",
-                        position = {"center", "top + 300"},
-                        children = {
-                            {
-                                checked = RandomUrns.CONFIG.drop_types.elemental_haste,
-                                id = "elemental_haste_checkbox",
-                                type = "checkbox",
-                                size = {40, 40},
-                                on = {
-                                    clicked = function()
-                                        RandomUrns.CONFIG.drop_types.elemental_haste = not RandomUrns.CONFIG.drop_types.elemental_haste
-                                        RandomUrns.update_drop_tables()
-                                        RandomUrns.hide_config()
-                                        RandomUrns.show_config()
-                                    end
-                                }
-                            },
-                            {
-                                text_align = "left",
-                                type = "label",
-                                text = "Elemental Haste",
-                                font_size = 20,
-                                color = "white",
-                                size = {120, 25}
-                            }
-                        }
-                    },
-                    -- Elemental Heal checkbox
-                    {
-                        layout = "horizontal",
-                        spacing = 10,
-                        type = "container",
-                        position = {"center", "top + 335"},
-                        children = {
-                            {
-                                checked = RandomUrns.CONFIG.drop_types.elemental_heal,
-                                id = "elemental_heal_checkbox",
-                                type = "checkbox",
-                                size = {40, 40},
-                                on = {
-                                    clicked = function()
-                                        RandomUrns.CONFIG.drop_types.elemental_heal = not RandomUrns.CONFIG.drop_types.elemental_heal
-                                        RandomUrns.update_drop_tables()
-                                        RandomUrns.hide_config()
-                                        RandomUrns.show_config()
-                                    end
-                                }
-                            },
-                            {
-                                text_align = "left",
-                                type = "label",
-                                text = "Elemental Heal",
-                                font_size = 20,
-                                color = "white",
-                                size = {120, 25}
-                            }
-                        }
-                    },
-                    -- Instructions
-                    {
-                        id = "instructions",
-                        type = "label",
-                        text = "Explosive Only makes all Regular Props drop Explosive Barrels.",
-                        font_size = 24,
-                        color = "white",
-                        position = {"center", "top + 420"},
-                        text_align = "center"
-                    },
-                    {
-                        id = "instructions",
-                        type = "label",
-                        text = "Prop Drop Chance is for the Regular Props Normal Drops.",
-                        font_size = 24,
-                        color = "white",
-                        position = {"center", "top + 450"},
-                        text_align = "center"
-                    },
-                    -- Back button
-                    {
-                        id = "randomurns_back_button",
-                        type = "button",
-                        text = "Back",
-                        font_size = 20,
-                        color = "white",
-                        position = {"center", "bottom - 40"},
-                        size = {200, 45},
-                        style = "button_standard",
-                        on = {
-                            clicked = function()
-                                RandomUrns.hide_config()
-                            end
-                        }
-                    }
-                }
+                children = main_children
             }
         }
     }
@@ -422,14 +334,20 @@ function RandomUrns.show_config()
     if not RandomUrns.loaded then
         return -- Base mod not loaded
     end
-    
+
     current_randomurns_config_widget = GUI:load_proto(create_randomurns_config_ui())
     GUI:add_modal_widget(current_randomurns_config_widget, GUI.MAIN_CONTROLLER)
-    -- Initialize the drop chance value label to reflect the current setting
+    -- Initialize the labels to reflect the current settings
     local value_label = current_randomurns_config_widget and current_randomurns_config_widget:get("urns_dropchance_value")
     if value_label and value_label.set_text then
-        value_label:set_text(string.format("%d%%", math.floor(((RandomUrns.CONFIG.drop_chance or 0.33) * 100) + 0.5)))
+        value_label:set_text(string.format("%d%%", math.floor(((RandomUrns.CONFIG.drop_chance_small or 0.01) * 100) + 0.5)))
     end
+
+    local big_value_label = current_randomurns_config_widget and current_randomurns_config_widget:get("big_dropchance_value")
+    if big_value_label and big_value_label.set_text then
+        big_value_label:set_text(string.format("%d%%", math.floor(((RandomUrns.CONFIG.drop_chance_big or 0.20) * 100) + 0.5)))
+    end
+    RandomUrns.update_weight_displays()
 end
 
 -- Function to hide config overlay
@@ -437,8 +355,9 @@ function RandomUrns.hide_config()
     if not current_randomurns_config_widget then
         return
     end
-    
+
     GUI:remove_modal_widget(current_randomurns_config_widget)
     GUI:destroy_widget(current_randomurns_config_widget)
     current_randomurns_config_widget = nil
 end
+
