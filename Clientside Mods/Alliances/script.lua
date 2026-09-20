@@ -18,7 +18,7 @@ local alliance_units = {
     {name = "skeleton_commander", weight = 3},
     {name = "necromancer", weight = 4},
     {name = "lich", weight = 6},
-    {name = "ghost", weight = 2},
+    {name = "ghost", weight = 3},
     -- ====================================
     {name = "lake_dweller", weight = 1},
     {name = "grunt_scavenger", weight = 1},
@@ -81,18 +81,48 @@ local DESPAWN_UNITS = {
     "boss_mummy",
 }
 local UNIT_LIFETIME = 25
-local function schedule_despawn(unit, unit_path)
+local function schedule_despawn(unit)
     Game.scheduler:delay_action(UNIT_LIFETIME, function ()
         if EntityAux.owned(unit) then
             local despawner = FlowCallbacks.state_game.despawner
             if despawner then
+                -- IIRC, this is the only safe despawner for bosses.
                 despawner:force_despawn(unit)
             end
         end
     end)
 end
 
-local orox_spawned = false
+-- Per-floor caps for the units that would otherwise flood a floor. Counts are
+-- cleared in the EndlessServer.get_floor hook below (where the old Orox flag was).
+local ALLIANCE_LIMITS = {
+    boss_orox = 1,
+    boss_mummy = 3,
+    demon_heavy = 8,
+    spider_queen = 8,
+    lich = 12,
+}
+local floor_spawn_counts = {}
+
+-- Built once at load: rebuilding them per spawn meant thousands of table.insert
+-- calls (250 / weight^2 entries per unit) for every monster the game spawned.
+local weighted_pool = {}
+local weighted_pool_without_crypt_boss = {}
+
+local function build_weighted_pool(pool, exclude_crypt_boss)
+    for _, unit_data in ipairs(alliance_units) do
+        if not (exclude_crypt_boss and unit_data.name == "boss_mummy") then
+            local entries = math.max(1, math.floor(250 / (unit_data.weight * unit_data.weight)))
+            for i = 1, entries do
+                pool[#pool + 1] = unit_data.name
+            end
+        end
+    end
+end
+
+build_weighted_pool(weighted_pool, false)
+build_weighted_pool(weighted_pool_without_crypt_boss, true)
+
 local alliances_modify_unit_path = function(original_path)
     if not original_path then
         return original_path
@@ -118,31 +148,20 @@ local alliances_modify_unit_path = function(original_path)
         return original_path
     end
 
-    local weighted_pool = {}
-    for _, unit_data in ipairs(alliance_units) do
-        -- Exclude boss_mummy from replacements when on the boss floor
-        if not (boss_floor and unit_data.name == "boss_mummy") then
-            local entries = math.max(1, math.floor(250 / (unit_data.weight * unit_data.weight)))
-            for i = 1, entries do
-                table.insert(weighted_pool, unit_data.name)
-            end
-        end
-    end
+    local pool = boss_floor and weighted_pool_without_crypt_boss or weighted_pool
+    local random_choice = pool[math.random(1, #pool)]
+    local cap = ALLIANCE_LIMITS[random_choice]
 
-    if #weighted_pool == 0 then
-        return original_path
-    end
+    if cap then
+        local spawned = floor_spawn_counts[random_choice] or 0
 
-    local random_choice = weighted_pool[math.random(1, #weighted_pool)]
-
-    if random_choice == "boss_orox" then
-        if orox_spawned then
+        if spawned >= cap then
             random_choice = "portal_crypt"
+        else
+            floor_spawn_counts[random_choice] = spawned + 1
         end
-        orox_spawned = true
-    else
-        -- Nothing
     end
+
     return random_choice
 end
 
@@ -170,7 +189,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             -- Optional: schedule despawn if needed
             for _, despawn_name in ipairs(DESPAWN_UNITS) do
                 if string.find(modified_path, despawn_name) then
-                    schedule_despawn(unit, modified_path)
+                    schedule_despawn(unit)
                     break
                 end
             end
@@ -191,7 +210,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
 
     if path == "lua/managers/endless_server" then
         Mods.hook:set_object_path("EndlessServer", "get_floor", function(orig, floor_index)
-            orox_spawned = false
+            floor_spawn_counts = {}
 
             return orig(floor_index)
         end, MOD_NAME .. ".EndlessServer.get_floor", MOD_NAME)

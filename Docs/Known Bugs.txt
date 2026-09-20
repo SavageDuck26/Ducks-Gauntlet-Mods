@@ -13,23 +13,11 @@ PF: N/A
 B: ChaosMode casters on caves ratio is off. (Reported by Siopilos)
 PF: Fix rate math for caves, something breaks it.
 
-B: A double crown bug happens only when the player has the crown and drops it by knocking back. (Reported by Siopilos)
-PF: Round crown math down instead of up.
-
 B: RandomHero mod needs bug fixes, needs to conserve potion amounts between levels for player, which is the only known bug at this time. (Reported by Mitch)
 PF: Unreleased mod. Needs to preserve amounts in vars for player.
 
 B: No ghost mod + Alliance mod does have ghosts in game. (Reported by Siopilos)
 PF: N/A
-
-B: Alliance need optimization, needs to limited eye/spider/liches bosses per floor. (Reported by Siopilos)
-PF: Add limits like with Orox. Make table with limit nums?
-
-B: DeadMansHand does not always gives end screen when all dies. (this happens when restart in-game, even leave lobby and create an new lobby does not fix this, restart game.exe make the fix) (Reported by Siopilos)
-PF: N/A
-
-B: Wiz goldpot sometimes crashes the game for the host when he use the pot. (Reported by Siopilos) 
-PF: N/A (Maybe not my mod that's the issue)
 
 B: Knossos when is above large sometimes (rare) gives you dead end. (Reported by Siopilos)
 PF: N/A

@@ -14,11 +14,13 @@ MoreCrowns.CONFIG = MoreCrowns.CONFIG or {
     crown_pickup_ui = true,
 }
 
+-- Crowns belonging to the crown a player is wearing right now: the worn one plus
+-- every extra crown they walked over, which pickup_master despawns (only one crown
+-- can be worn) and which are handed back when the worn crown is knocked off.
+-- Cleared wherever the worn crown stops existing without a drop_master call.
 MoreCrowns.crowns_held_currently = MoreCrowns.crowns_held_currently or {}
 MoreCrowns.crowns_picked_up_total = MoreCrowns.crowns_picked_up_total or {}
 MoreCrowns.crowns_picked_up_floor = MoreCrowns.crowns_picked_up_floor or {}
-
-local CROWN_DROP_DIVISOR = 2
 
 local function get_crown_chance()
     -- Return 0 if mod is disabled
@@ -108,7 +110,8 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 end
             end
             
-            -- Always count the crown pickup for tracking purposes
+            -- Bank every pickup against the crown being worn (a despawned extra is
+            -- handed back on knockback), and count it for the floor/total UI.
             if player_info then
                 MoreCrowns.crowns_held_currently[player_name] = (MoreCrowns.crowns_held_currently[player_name] or 0) + 1
                 MoreCrowns.crowns_picked_up_total[player_name] = (MoreCrowns.crowns_picked_up_total[player_name] or 0) + 1
@@ -142,8 +145,12 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             local player_name = player_info and (player_info.name or player_info.display_name or player_info.player_name) or "Unknown Player"
             -- ================================================================================================================
             if player_info then
-                local held = MoreCrowns.crowns_held_currently[player_name] or 0
-                for i = 1, (held / CROWN_DROP_DIVISOR) do
+                -- drop_master is already dropping the worn crown; half of the crowns
+                -- banked against it (rounded down) are lost with it.
+                local picked_up = MoreCrowns.crowns_held_currently[player_name] or 0
+                local extra_drops = math.floor(math.max(picked_up - 1, 0) / 2)
+
+                for i = 1, extra_drops do
                     local drop = "gameobjects/treasures/crown/crown"
 
                     local entity_spawner = FlowCallbacks.state_game.entity_spawner
@@ -187,6 +194,17 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             treasure_state.carrier = nil
             treasure_state.dropped_time = _G.GAME_TIME
         end, MOD_NAME .. ".TreasureComponent.drop_master", MOD_NAME)
+
+        Mods.hook:set_object_path("TreasureComponent", "on_avatar_exiting_floor", function(orig, self, avatar_unit, player_go_id)
+            -- Floor exit despawns the worn crown without drop_master, so the pickups
+            -- banked against it must not follow the player onto the next floor.
+            local player_info = PlayerManager:get_player_info_by_avatar(avatar_unit)
+            local player_name = player_info and (player_info.name or player_info.display_name or player_info.player_name) or "Unknown Player"
+
+            MoreCrowns.crowns_held_currently[player_name] = nil
+
+            orig(self, avatar_unit, player_go_id)
+        end, MOD_NAME .. ".TreasureComponent.on_avatar_exiting_floor", MOD_NAME)
     end
 
     return result

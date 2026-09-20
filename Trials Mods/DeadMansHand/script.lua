@@ -35,15 +35,21 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             end
         end
 
-        AddUtility.register_update(MOD_NAME .. "_skull_coins", function(dt)
-            if _G.is_host_ducks_mods and rawget(_G, "PartyLeadManager") then
-                local plm = PartyLeadManager
-                if plm.party_data and plm.party_data.skull_coins_protected and plm.network_session and plm.party_id then
+        -- Zero the coin counter from inside the server update itself.
+        Mods.hook:set_object(GameServer, "update", function(orig, self, dt)
+            local plm = rawget(_G, "PartyLeadManager")
+
+            if plm and plm.party_data and plm.party_data.skull_coins_protected and plm.network_session and plm.party_id then
+                -- Only touch the replicated field when a coin actually appeared:
+                -- vanilla only writes it on change, and this runs every frame.
+                if plm.party_data.skull_coins_protected:get() ~= 0 then
                     plm.party_data.skull_coins_protected:set(0)
                     GameSession.set_game_object_field(plm.network_session, plm.party_id, "skull_coins", 0)
                 end
             end
-        end)
+
+            return orig(self, dt)
+        end, MOD_NAME .. ".GameServer.update", MOD_NAME)
     end
 
     if path == "lua/states/game_client" and GameClient then
