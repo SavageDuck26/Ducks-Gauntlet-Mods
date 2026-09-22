@@ -31,6 +31,14 @@ local function get_spider_queen_chance()
     return 0.15
 end
 
+-- Helper function to get the summoned wall chance
+local function get_wall_chance()
+    if Summoners.CONFIG.summoners and Summoners.CONFIG.summoners.grunt_shaman then
+        return Summoners.CONFIG.summoners.grunt_shaman.wall_chance or 0.15
+    end
+    return 0.15
+end
+
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
@@ -216,6 +224,12 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                                 rotation,
                                 { spawn_info_key = "default" }
                             )
+                        end
+
+                        -- Rolled separately from the skull, so a cast can raise a wall, throw a
+                        -- skull, or do both. SummonedWall is the restored asset (see Fixes).
+                        if math.random() < get_wall_chance() then
+                            SummonedWall.raise(unit)
                         end
                     end,
                 },

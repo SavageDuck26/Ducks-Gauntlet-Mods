@@ -27,6 +27,7 @@ Summoners.CONFIG = Summoners.CONFIG or {
             enabled = true,
             projectile_chance = 0.25,
             spider_queen_chance = 0.15,
+            wall_chance = 0.15,
         },
         skeleton_commander = {
             enabled = true,
@@ -73,6 +74,7 @@ local SUMMONER_DATA = {
         settings = {
             { key = "projectile_chance", label = "Projectile Spawn", spawn = "Homing Skull" },
             { key = "spider_queen_chance", label = "Buff Spawner Spawn", spawn = "Spider Queen" },
+            { key = "wall_chance", label = "Projectile Spawn", spawn = "Summoned Wall" },
         }
     },
     { 
