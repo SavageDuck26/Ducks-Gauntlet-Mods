@@ -1,4 +1,4 @@
-Serverside Modding
+**Serverside Modding:** 
 Important Note: The host player always has authority when it comes to Serverside Mods, aka: Serverside Mods will only run if the host is using them, non-host player’s Serverside Mods will not run.
 
 Serverside Mods are mods that affect all player’s games without causing conflicts. 

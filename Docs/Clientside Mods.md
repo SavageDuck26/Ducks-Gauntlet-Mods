@@ -1,4 +1,4 @@
-Clientside Modding
+**Clientside Modding:** 
 Important Note: The host player always has authority when it comes to Clientside Mods, aka: always use the same settings/Clientside Mods as the host player.
 
 Clientside Mods are mods that only affect the player using the mods, and cause conflicts with players that are not using them. The mod Knossos is the best example of this. When an Endless Floor is generated in Gauntlet, the game creates a layout based on a seed from RNG (Random Number Generation). When another player joins this modded game, they will receive the seed for the level generation from the host of the game, then their own game will generate the same floor layout as the host. However, when the layouts are not identical, the game engine returns an error and the game crashes. This basically means: without identical Clientside Mods for every player, the game will crash for anyone with a difference. The changes can be as simple as a single setting being changed. 

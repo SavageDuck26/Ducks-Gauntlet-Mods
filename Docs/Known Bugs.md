@@ -21,6 +21,3 @@ PF: N/A
 
 B: Knossos when is above large sometimes (rare) gives you dead end. (Reported by Siopilos)
 PF: N/A
-
-B: Skull Homing missles from cave casters are stuck and not disappearing on Valk shield pot. (Reported by Siopilos)
-PF: Auto-kill when velocity goes under ~1?

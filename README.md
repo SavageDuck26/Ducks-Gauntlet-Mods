@@ -1,7 +1,8 @@
 This is where I will be updating my modpack for Gauntlet Slayer Edition using the Bitesquid mod loader made by Skapp. Please read all Documentation for mods before using them.
 
 **Important Notes:**
-My mods will NOT run correctly without the mod **AddUtility**. Please be sure to have this mod on at all times, it also functions as a compatibility mod, meaning you may crash while joining other modded games without it on.
+- update.py pulls the newest release if you choose to use it. Please never run modified python files.
+- My mods will NOT run correctly without the mod **AddUtility**. Please be sure to have this mod on at all times, it also functions as a compatibility mod, meaning you may crash while joining other modded games without it on.
 
 Mods are split into a few different categories:
 - **Clientside Mods:** These mods only work if all players are using them with identical settings. Otherwise: players without the mods and settings will likely crash when joining a Clientside modded game.

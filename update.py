@@ -1,4 +1,4 @@
-"""Pull the latest Ducks-Gauntlet-Mods release into a Ducks Mods folder."""
+"""Pull the latest Ducks-Gauntlet-Mods release zip."""
 
 import json
 import subprocess
