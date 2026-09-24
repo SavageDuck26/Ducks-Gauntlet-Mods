@@ -38,6 +38,7 @@ end
 
 -- List of mod namespaces that use the CONFIG pattern
 local REGISTERED_MODS = {
+    "Alliances",
     "Berserkers",
     "ChaosMode",
     "ColosseumStones",
@@ -268,6 +269,7 @@ end
 
 local function create_duck_overlay_ui()
     local all_buttons_config = {
+        {id = "alliances_config", text = "Alliances Config", callback = "Alliances.show_config()", global = "Alliances", func = "show_config"},
         {id = "berserkers_config", text = "Berserkers Config", callback = "Berserkers.show_config()", global = "Berserkers", func = "show_config"},
         {id = "chaosmode_config", text = "ChaosMode Config", callback = "ChaosMode.show_config()", global = "ChaosMode", func = "show_config"},
         {id = "colosseum_stones_config", text = "ColosseumStones Config", callback = "ColosseumStones.show_config()", global = "ColosseumStones", func = "show_config"},

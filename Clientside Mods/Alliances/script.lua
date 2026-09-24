@@ -1,47 +1,73 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.7.0"
+local MOD_VERSION = "1.8.0"
 local MOD_DESCRIPTION = "Mixes all factions in Endless"
 
 local MOD_NAME, log_message = Mods.init_mod(nil, "mods/Alliances/Alliances.lua")
 local is_crypt_boss_floor = false
 
+Alliances = Alliances or {}
+Alliances.loaded = true
+
 -- Weighted list of alliance units (1 is normal spawns, 5 is the hard falloff for rare spawns, past 5-6 is very very rare.)
-local alliance_units = {
-    {name = "mummy_bloated", weight = 3},
-    {name = "mummy_risen", weight = 1},
-    {name = "mummy_giant", weight = 2},
-    {name = "mummy_priest", weight = 2},
-    {name = "skeleton_soldier", weight = 1},
-    {name = "skeleton_defender", weight = 2},
-    {name = "skeleton_warrior", weight = 3},
-    {name = "skeleton_commander", weight = 3},
-    {name = "necromancer", weight = 4},
-    {name = "lich", weight = 6},
-    {name = "ghost", weight = 3},
+-- Shared with script_AlliancesUI.lua and the source of the config defaults. The ids are the save
+-- keys in mod_settings.json, so do not rename existing ones.
+Alliances.unit_list = {
+    {id = "mummy_bloated", weight = 3},
+    {id = "mummy_risen", weight = 1},
+    {id = "mummy_giant", weight = 2},
+    {id = "mummy_priest", weight = 2},
+    {id = "skeleton_soldier", weight = 1},
+    {id = "skeleton_defender", weight = 2},
+    {id = "skeleton_warrior", weight = 3},
+    {id = "skeleton_commander", weight = 3},
+    {id = "necromancer", weight = 4},
+    {id = "lich", weight = 6},
+    {id = "ghost", weight = 3},
     -- ====================================
-    {name = "lake_dweller", weight = 1},
-    {name = "grunt_scavenger", weight = 1},
-    {name = "grunt_shaman", weight = 3},
-    {name = "orc_melee", weight = 2},
-    {name = "orc_juggernaut", weight = 3},
-    {name = "spider_hatchling", weight = 1},
-    {name = "spider_warrior", weight = 3},
-    {name = "spider_queen", weight = 6},
+    {id = "lake_dweller", weight = 1},
+    {id = "grunt_scavenger", weight = 1},
+    {id = "grunt_shaman", weight = 3},
+    {id = "orc_melee", weight = 2},
+    {id = "orc_juggernaut", weight = 3},
+    {id = "spider_hatchling", weight = 1},
+    {id = "spider_warrior", weight = 3},
+    {id = "spider_queen", weight = 6},
     -- ====================================
-    {name = "cultist_novice", weight = 1},
-    {name = "cultist_zealot", weight = 2},
-    {name = "cultist_sorcerer", weight = 3},
-    {name = "demon_melee", weight = 1},
-    {name = "demon_ranged", weight = 4},
-    {name = "cultist_armor", weight = 5},
-    {name = "demon_heavy", weight = 6},
+    {id = "cultist_novice", weight = 1},
+    {id = "cultist_zealot", weight = 2},
+    {id = "cultist_sorcerer", weight = 3},
+    {id = "demon_melee", weight = 1},
+    {id = "demon_ranged", weight = 4},
+    {id = "cultist_armor", weight = 5},
+    {id = "demon_heavy", weight = 6},
     -- ====================================
-    {name = "portal_crypt", weight = 7}, -- Please for the love of god don't lower this weight below 5 :D
-    {name = "boss_morak_sword", weight = 7},
-    {name = "boss_mummy", weight = 5},
-    {name = "boss_orox", weight = 7},
+    {id = "portal_crypt", weight = 7}, -- Please for the love of god don't lower this weight below 5 :D
+    {id = "boss_morak_sword", weight = 7},
+    {id = "boss_mummy", weight = 5},
+    {id = "boss_orox", weight = 7},
 }
+
+-- "mummy_bloated" -> "Mummy Bloated", so the config UI has something readable to show.
+for _, unit in ipairs(Alliances.unit_list) do
+    unit.label = (unit.id:gsub("_", " "):gsub("(%a)([%w]*)", function(first, rest) return first:upper() .. rest end))
+end
+
+-- Saveable settings (defaults are the values this mod shipped with).
+Alliances.CONFIG = Alliances.CONFIG or {}
+Alliances.CONFIG.enabled = Alliances.CONFIG.enabled ~= false
+Alliances.CONFIG.unit_enabled = Alliances.CONFIG.unit_enabled or {}
+Alliances.CONFIG.unit_weights = Alliances.CONFIG.unit_weights or {}
+
+for _, unit in ipairs(Alliances.unit_list) do
+    if Alliances.CONFIG.unit_enabled[unit.id] == nil then
+        Alliances.CONFIG.unit_enabled[unit.id] = true
+    end
+
+    if Alliances.CONFIG.unit_weights[unit.id] == nil then
+        Alliances.CONFIG.unit_weights[unit.id] = unit.weight
+    end
+end
 
 local should_replace_units = {
     "mummy_bloated",
@@ -102,29 +128,48 @@ local ALLIANCE_LIMITS = {
     spider_queen = 8,
     lich = 12,
 }
+-- Units that hit their per-floor cap are replaced with this one instead, so a single kind of enemy
+-- cannot flood a floor. If it is unchecked in the config the spawn is left vanilla instead.
+local CAP_FALLBACK_UNIT = "portal_crypt"
 local floor_spawn_counts = {}
 
--- Built once at load: rebuilding them per spawn meant thousands of table.insert
--- calls (250 / weight^2 entries per unit) for every monster the game spawned.
+-- Rebuilt on config change, never per spawn: rebuilding them per spawn meant thousands of
+-- table.insert calls (250 / weight^2 entries per unit) for every monster the game spawned.
 local weighted_pool = {}
 local weighted_pool_without_crypt_boss = {}
 
 local function build_weighted_pool(pool, exclude_crypt_boss)
-    for _, unit_data in ipairs(alliance_units) do
-        if not (exclude_crypt_boss and unit_data.name == "boss_mummy") then
-            local entries = math.max(1, math.floor(250 / (unit_data.weight * unit_data.weight)))
+    for _, unit in ipairs(Alliances.unit_list) do
+        local enabled = Alliances.CONFIG.unit_enabled[unit.id] ~= false
+        if enabled and not (exclude_crypt_boss and unit.id == "boss_mummy") then
+            local weight = Alliances.CONFIG.unit_weights[unit.id] or unit.weight
+            local entries = math.max(1, math.floor(250 / (weight * weight)))
             for i = 1, entries do
-                pool[#pool + 1] = unit_data.name
+                pool[#pool + 1] = unit.id
             end
         end
     end
 end
 
-build_weighted_pool(weighted_pool, false)
-build_weighted_pool(weighted_pool_without_crypt_boss, true)
+-- Called at load, by the config UI and by DucksUI (Alliances.load_config) after settings change.
+-- Tables are swapped rather than cleared: table.clear does not exist yet while mods are loaded
+-- (the game patches it in later), and this must work at load time too.
+Alliances.rebuild_pools = function()
+    weighted_pool = {}
+    weighted_pool_without_crypt_boss = {}
+
+    build_weighted_pool(weighted_pool, false)
+    build_weighted_pool(weighted_pool_without_crypt_boss, true)
+end
+
+Alliances.load_config = function()
+    Alliances.rebuild_pools()
+end
+
+Alliances.rebuild_pools()
 
 local alliances_modify_unit_path = function(original_path)
-    if not original_path then
+    if not original_path or not Alliances.CONFIG.enabled then
         return original_path
     end
 
@@ -149,6 +194,12 @@ local alliances_modify_unit_path = function(original_path)
     end
 
     local pool = boss_floor and weighted_pool_without_crypt_boss or weighted_pool
+
+    if #pool == 0 then
+        -- Every unit can be unchecked in the config; leave the spawn vanilla rather than fail.
+        return original_path
+    end
+
     local random_choice = pool[math.random(1, #pool)]
     local cap = ALLIANCE_LIMITS[random_choice]
 
@@ -156,7 +207,11 @@ local alliances_modify_unit_path = function(original_path)
         local spawned = floor_spawn_counts[random_choice] or 0
 
         if spawned >= cap then
-            random_choice = "portal_crypt"
+            if Alliances.CONFIG.unit_enabled[CAP_FALLBACK_UNIT] == false then
+                return original_path
+            end
+
+            random_choice = CAP_FALLBACK_UNIT
         else
             floor_spawn_counts[random_choice] = spawned + 1
         end
@@ -186,11 +241,14 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             -- Let original implementation do everything it needs (this preserves spawn_info)
             local unit, go_id = orig(self, modified_path, position, rotation, parent_go_id, setup_info)
 
-            -- Optional: schedule despawn if needed
-            for _, despawn_name in ipairs(DESPAWN_UNITS) do
-                if string.find(modified_path, despawn_name) then
-                    schedule_despawn(unit)
-                    break
+            -- Only clean up units this mod put on the floor: a vanilla boss (mod switched off, or
+            -- the crypt boss floor passthrough) must never be despawned by us.
+            if modified_path ~= unit_path then
+                for _, despawn_name in ipairs(DESPAWN_UNITS) do
+                    if string.find(modified_path, despawn_name) then
+                        schedule_despawn(unit)
+                        break
+                    end
                 end
             end
 

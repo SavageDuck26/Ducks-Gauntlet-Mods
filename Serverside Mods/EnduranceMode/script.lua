@@ -1,17 +1,18 @@
 -- =================================================================================================
 -- Author: SavageDuck26
--- Version: 1.2
+-- Version: 1.4
 -- Purpose: Random floor every endless level.
 -- =================================================================================================
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.2.0"
+local MOD_VERSION = "1.4.0"
 local MOD_DESCRIPTION = "Random floor every endless level"
 
 
 EnduranceMode = EnduranceMode or {}
 EnduranceMode.loaded = true
-EnduranceMode.enabled = false
+EnduranceMode.enabled = false -- true for the whole Endurance session: floor restarts, lobby restarts
+EnduranceMode.pending = false -- true while an Endurance start is in flight (its main-menu entry is not "back at the menu")
 EnduranceMode.chosen_difficulty = nil -- set when player confirms difficulty for Endurance runs
 
 local MOD_NAME, log_message = Mods.init_mod(nil, "mods/EnduranceMode/EnduranceMode.lua")
@@ -57,10 +58,12 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 return orig(floor_index)
             end
 
-            local level = orig(floor_index)
-            if EnduranceMode.enabled then
-                level.floor_id = get_random_next_floor()
-            end
+            -- get_floor returns the shared entry from the engine's ENDLESS_LEVELS list. Writing the
+            -- random floor id into it rewrites the normal endless floor order for the rest of the
+            -- session, so the next (non-Endurance) endless run loads Endurance's random floors.
+            -- Override the floor on a copy and leave the engine's list untouched.
+            local level = table.clone(orig(floor_index))
+            level.floor_id = get_random_next_floor()
             
             return level
         end, MOD_NAME .. ".EndlessServer.get_floor", MOD_NAME)
@@ -140,6 +143,20 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
     end
 
 	if path == "lua/menu/screen_main_menu" then
+		-- Endurance survives floor restarts and returning to the endless lobby; it only ends once the
+		-- player is back at the main menu. Starting Endurance re-enters the main menu on the way to
+		-- the lobby (Game.go_to_lobby -> back_to -> on_enter), so that single entry is the one the
+		-- pending flag swallows instead of treating it as "back at the menu".
+		Mods.hook:set_object_path("ScreenMainMenu", "on_enter", function(orig, self, ...)
+			if EnduranceMode.pending then
+				EnduranceMode.pending = false
+			else
+				EnduranceMode.enabled = false
+			end
+
+			return orig(self, ...)
+		end, MOD_NAME .. ".ScreenMainMenu.on_enter", MOD_NAME)
+
 		Mods.hook:set_object_path("ScreenMainMenu", "rebuild_ui", function(orig, self)
 			orig(self)
 
@@ -169,11 +186,13 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
 
                     EnduranceMode.chosen_difficulty = chosen
                     EnduranceMode.enabled = true
+                    EnduranceMode.pending = true
 
                     self:start_game(GAME_TYPE_ENDLESS, true)
                 end, true)
 			else
                 EnduranceMode.enabled = false
+                EnduranceMode.pending = false
 				orig(self, widget, user_name)
 			end
 		end, MOD_NAME .. ".ScreenMainMenu.widget_clicked", MOD_NAME)

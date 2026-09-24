@@ -1,6 +1,6 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.3.1"
+local MOD_VERSION = "1.3.2"
 local MOD_DESCRIPTION = "Trials. Disables most inputs when not wearing the crown for the player with the mod."
 
 
@@ -11,7 +11,7 @@ LazyHeroes = LazyHeroes or {}
 -- WEARING the crown instead of when NOT wearing it.
 LazyHeroes.is_cursed = false
 
--- Raw input fields a "lazy" player is still allowed to use (move / aim / interact).
+-- Raw input fields a "lazy" player is still allowed to use (move / aim / interact / emotes).
 LazyHeroes.allowed_inputs = {
     move      = true,
     move_raw  = true,
@@ -19,6 +19,14 @@ LazyHeroes.allowed_inputs = {
     interact  = true,
     is_active = true,
     cursor    = true,
+
+    -- Emotes are only VO triggers inside AvatarComponent.update_masters; they never reach the
+    -- combo tree or the AI states.
+    -- Remapping the keys in the options screen keeps these action names, so no key lookup is needed.
+    emote_cheer  = true,
+    emote_help   = true,
+    emote_thanks = true,
+    emote_letsgo = true,
 }
 
 -- Returns true when the given avatar unit belongs to a player who is currently
