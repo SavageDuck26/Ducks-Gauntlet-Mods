@@ -11,8 +11,8 @@ Mod Testers: Siopilos, Mitch, Ky1, JMFC77, Choco, Windmill, masterslay, Kryptic,
 *AddUtility:* This is REQUIRED for some other mods to work. The mod adds utility checks like host checking and many bug fixes for other mods, as well as compatibility features for mods like Alliances.
 
 **Clientside Mods:**
-- *Alliances:* Randomizes all enemy spawns in the game into other enemies. 
-- *Knossos:* Adds branching rooms to Endless mode, that can now interconnect dead ends to make loops.
+- *Alliances(UI):* Randomizes all enemy spawns in the game into other enemies. 
+- *Knossos(UI):* Adds branching rooms to Endless mode, that can now interconnect dead ends to make loops.
 - *SetSeedEndless:* Causes all Endless seed RNG to follow the floor number instead of being randomized. (Requested by SealsOMG)
 
 **Local Mods:**
