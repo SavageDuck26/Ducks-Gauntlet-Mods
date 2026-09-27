@@ -53,4 +53,5 @@ Mod Testers: Siopilos, Mitch, Ky1, JMFC77, Choco, Windmill, masterslay, Kryptic,
 - *Peacemonger:* Notifies failure of the Peacemonger trial when more than one kill is achieved per level. (Made for Gauntlet Trials at the request of Siopilos)
 - *TheLaziestHero:* Restricts all actions except movement unless wearing a crown. (Made for Gauntlet Trials at the request of Siopilos)
 
-
+**Other:**
+- Stats folder. (Requested by The Birdy from Nowhere)

@@ -1,0 +1,113 @@
+﻿Name,Hitpoints,Movespeed,Max Movespeed,Movespeed 0-100 Duration
+apple,1,,,
+boss_morak,800 / 1400 / 2000 / 2500,2.5,,0.5
+boss_morak_illusion,1 / 1 / 1 / 1,2.5,,0.5
+boss_morak_sword,,4.5,16,0.3
+boss_mummy,640 / 1280 / 1920 / 2560,0.7,,
+boss_mummy_heart,3840,,,
+boss_orox,1280 / 1920 / 2560 / 3200,7,,
+carry_barrel_caves,1,,,
+carry_barrel_crypt,1,,,
+carry_barrel_lava,1,,,
+carry_boulder,1,,,
+cultist_armor,120,18,20,1
+cultist_armor_corpse,1,1,20,3
+cultist_novice,15,14,20,1
+cultist_sorcerer,48,6,10,1
+cultist_zealot,24,14,20,1
+death,,3,,0.3
+demon_heavy,384 / 768 / 1152 / 1536,0.5,,0.3
+demon_melee,24,15,20,1
+demon_overlord_mini,48,1,,0.3
+demon_ranged,80,1,,0.3
+elemental_haste,1,,,
+elemental_heal,1,,,
+elemental_ice,1,,,
+elemental_poison,1,,,
+elemental_shockwave,1,,,
+elf,50,6.5,,
+enemy_template,15,3,16,0.5
+ghost,1,5,,0.3
+grunt_scavenger,15,12,20,1
+grunt_scavenger_buffed,15,12,20,1
+grunt_shaman,48,2,20,0.1
+ham,1,,,
+homing_skull_projectile,,,,0.3
+illusion_elf,1,6.5,,
+illusion_necromagus,1,6.5,,
+illusion_valkyrie,1,6.5,,
+illusion_warrior,1,6.5,,
+illusion_wizard,1,6.5,,
+lake_dweller,15,3,16,0.5
+lich,300 / 500 / 1000 / 1300,1,,0.3
+living_statue,80,15,20,3
+living_statue_blocker,48,,,
+mummy_bloated,1,5,,0.3
+mummy_giant,100,12,20,5
+mummy_giant_greed,48,5,5,3
+mummy_priest,48,10,20,1
+mummy_risen,15,10,20,3
+necromagus,50,6.5,,
+necromagus_summoned_archer,15,4,,1
+necromagus_summoned_ghost,1,15,,0.3
+necromagus_summoned_soldier,31,15,20,3
+necromagus_summoned_soldier_armored,60,15,20,3
+necromagus_summoned_superarcher,15,4,,1
+necromancer,192 / 384 / 576 / 768,5,,0.5
+orc_juggernaut,180,3,,1.1
+orc_melee,24,15,20,2
+portal_caves,200 / 275 / 350 / 425,,,
+portal_crypt,200 / 275 / 350 / 425,,,
+portal_lava,200 / 275 / 350 / 425,,,
+potion_blue,1,,,
+relic_gargoyle,100,4,,3
+relic_gargoyle_tier2,100,4,,3
+skeleton_commander,48,5,,2
+skeleton_defender,60,3,20,1
+skeleton_heavy,8,2,,0.1
+skeleton_soldier,15,4,20,2
+skeleton_warrior,48,5,,2
+spawner_beam,200 / 275 / 350 / 425,,,
+spawner_caves_grunt,200 / 275 / 350 / 425,,,
+spawner_caves_grunt_t1,172 / 258 / 301 / 344,,,
+spawner_caves_orc,200 / 275 / 350 / 425,,,
+spawner_caves_orc_t1,172 / 258 / 301 / 344,,,
+spawner_crypt_mummy,200 / 275 / 350 / 425,,,
+spawner_crypt_mummy_t1,172 / 258 / 301 / 344,,,
+spawner_crypt_skeleton,200 / 275 / 350 / 425,,,
+spawner_crypt_skeleton_t1,172 / 258 / 301 / 344,,,
+spawner_exploding,200 / 275 / 350 / 425,,,
+spawner_force_field,200 / 275 / 350 / 425,,,
+spawner_freeze_nova,200 / 275 / 350 / 425,,,
+spawner_ghost,50 / 60 / 70 / 80,,,
+spawner_invisible,200 / 275 / 350 / 425,,,
+spawner_lava_cultist,200 / 275 / 350 / 425,,,
+spawner_lava_cultist_t1,172 / 258 / 301 / 344,,,
+spawner_lava_daemon,200 / 275 / 350 / 425,,,
+spawner_lava_daemon_t1,172 / 258 / 301 / 344,,,
+spawner_mortar,200 / 275 / 350 / 425,,,
+spawner_poison_launcher,200 / 275 / 350 / 425,,,
+spawner_selfdestruct,200 / 275 / 350 / 425,,,
+spawner_shield,120,,,
+spawner_trap,200 / 275 / 350 / 425,,,
+spawner_twister,200 / 275 / 350 / 425,,,
+spell_lightning_shield,120,,,
+spider_egg,48,,,
+spider_hatchling,1,3,5,0.1
+spider_queen,400 / 800 / 1200 / 1500,6,,0.6
+spider_warrior,200,3.5,10,0.1
+summoned_wall,20,,,
+turkey,1,,,
+turret_freeze,128 / 256 / 385 / 448,,,
+turret_laser,128 / 256 / 385 / 448,,,
+turret_poison,128 / 256 / 385 / 448,,,
+turret_proximity_mine,128 / 256 / 385 / 448,,,
+turret_tornado,128 / 256 / 385 / 448,,,
+turret_tremor,128 / 256 / 385 / 448,,,
+ultimate_remnant,120,,,
+ultimate_shield,120,,,
+urn,1,,,
+valkyrie,75,6.5,,
+valkyrie_summoned_valkyrie,1,6.5,,
+warrior,100,6.5,,
+wizard,50,6.5,,
