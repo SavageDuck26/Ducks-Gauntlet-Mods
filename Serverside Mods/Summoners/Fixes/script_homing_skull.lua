@@ -144,8 +144,10 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 dead = {
                     on_enter = {
                         closure(function(component, unit, context)
-                            local command = TempTableFactory:get_map("ability_name", "expire")
-                            EntityAux.queue_command_master(unit, "ability", "execute_ability", command)
+                            -- The skull stops hunting when its lifetime runs out. Take the same death it
+                            -- already takes on a damageable hit (t.on_hit) instead of the silent
+                            -- vanilla "expire" fade, so the death function still runs.
+                            destroy(component, unit)
                         end, component),
                     },
                     update = {},

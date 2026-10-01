@@ -8,9 +8,6 @@
 *Bug:* Pots cooldown + RandomLoadout do not display cooldown visuals correctly. (Reported by Siopilos)
 *Proposed Fix:* N/A
 
-*Bug:* ChaosMode casters on caves ratio is off. (Reported by Siopilos)
-*Proposed Fix:* Fix rate math for caves, something breaks it.
-
 *Bug:* RandomHero mod needs bug fixes, needs to conserve potion amounts between levels for player, which is the only known bug at this time. (Reported by Mitch)
 *Proposed Fix:* Unreleased mod. Needs to preserve amounts in vars for player.
 
@@ -19,8 +16,6 @@
 
 ## Mod Suggestions (by priority):
 - Culling system fix for Knossos and Alliances, too many bosses/lag.
-- ChaosMode UI for only extra towers/bosses in each room. (Requested by SealsOMG and Siopilos)
-- Homing Skull needs to die when hunt ends, not go off into space.
 - Increase Eye Boss threat range.
 - When a player dies, revive them as Lazy ,for the next floor only.
 - Players able to swap in game between all 3 potion abilities.

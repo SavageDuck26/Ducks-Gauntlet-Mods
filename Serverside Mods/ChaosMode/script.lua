@@ -4,7 +4,6 @@ local MOD_VERSION = "4.2.0"
 local MOD_DESCRIPTION = "Chaos and Hell modes, configurable difficulty modes"
 
 
-
 local MOD_NAME, log_message = Mods.init_mod(nil, "mods/ChaosMode/ChaosMode.lua")
 ChaosMode = ChaosMode or {}
 ChaosMode.loaded = true
@@ -14,6 +13,9 @@ ChaosMode.CONFIG = ChaosMode.CONFIG or {
     mode = "chaos",
     prevent_backtrack_spawns = true,
     knossos_proximity_cull = true,
+    controlled_chaos = false,      -- true = keep chaos out of hallways, rooms only
+    controlled_chaos_spawners = 0, -- spawner stones added to every room encounter (0-10)
+    bosses_enabled = false,        -- master toggle for the injected sub-bosses
 }
 
 ChaosMode.chaos_multiplier = ChaosMode.chaos_multiplier or 5000
@@ -43,6 +45,197 @@ ChaosMode.mode_names = ChaosMode.mode_names or {
     hell = "Welcome To Hell",
     limbo = "Limbo"
 }
+
+-- Sub-boss enemies ChaosMode can drop into room encounters. Each one is a simple on/off toggle for
+-- the player. The ids are the save keys in mod_settings.json, so do not rename existing ones.
+ChaosMode.boss_list = ChaosMode.boss_list or {
+    {id = "lich"},
+    {id = "necromancer"},
+    {id = "spider_queen"},
+    {id = "demon_heavy"},
+}
+
+-- "spider_queen" -> "Spider Queen", so the config UI has something readable to show.
+for _, boss in ipairs(ChaosMode.boss_list) do
+    boss.label = boss.label or (boss.id:gsub("_", " "):gsub("(%a)([%w]*)", function(first, rest) return first:upper() .. rest end))
+end
+
+ChaosMode.CONFIG.boss_enabled = ChaosMode.CONFIG.boss_enabled or {}
+ChaosMode.CONFIG.boss_count = ChaosMode.CONFIG.boss_count or {}
+
+for _, boss in ipairs(ChaosMode.boss_list) do
+    if ChaosMode.CONFIG.boss_enabled[boss.id] == nil then
+        ChaosMode.CONFIG.boss_enabled[boss.id] = true
+    end
+
+    if ChaosMode.CONFIG.boss_count[boss.id] == nil then
+        ChaosMode.CONFIG.boss_count[boss.id] = 1
+    end
+end
+
+-- Every group the current environment can field, across all of its floor types. Pulling the whole
+-- environment (not just the exact floor type) is what lets a crypt full of mummies still roll a
+-- necromancer -- the necromancer group only lists the skeleton/crypt_mixed floor types.
+local function collect_environment_groups(self)
+    local env_name = DungeonManager:get_current_environment_name()
+    local environment_group = self._all_groups and self._all_groups[env_name]
+
+    if not environment_group then
+        return {}
+    end
+
+    local seen = {}
+    local groups = {}
+
+    for _, group_list in pairs(environment_group.floor_type_to_groups) do
+        for _, group in ipairs(group_list) do
+            if not seen[group] then
+                seen[group] = true
+                groups[#groups + 1] = group
+            end
+        end
+    end
+
+    return groups
+end
+
+-- The sub-boss units the current environment can field and the player has enabled. The engine
+-- already ships one group per sub-boss (lich_01, necromancer_01, spider_queen_01, demon_heavy_01),
+-- so their presence in the environment's groups is the "right environment" test.
+local function get_environment_subboss_units(self)
+    local units = {}
+    local seen = {}
+
+    for _, group in ipairs(collect_environment_groups(self)) do
+        local unit_path = group.enemy_infos[1] and group.enemy_infos[1].unit_path
+
+        if unit_path and ChaosMode.CONFIG.boss_enabled[unit_path] and not seen[unit_path] then
+            seen[unit_path] = true
+            units[#units + 1] = unit_path
+        end
+    end
+
+    return units
+end
+
+-- The native spawner units this environment already fields. The Spawner slider drops extra copies
+-- of these into rooms; because they are the level's own endless spawners, ColosseumStones still
+-- recognises them in spawn_at_point and can swap them for its colosseum stones.
+local function get_environment_spawner_units(self)
+    local units = {}
+    local seen = {}
+
+    for _, group in ipairs(collect_environment_groups(self)) do
+        local unit_path = group.is_spawner and group.enemy_infos[1] and group.enemy_infos[1].unit_path
+
+        if unit_path and not seen[unit_path] then
+            seen[unit_path] = true
+            units[#units + 1] = unit_path
+        end
+    end
+
+    return units
+end
+
+-- The node of the room encounter currently being built, captured in create_spawn_points so the
+-- Spawner stones can be placed straight into that room.
+local encounter_node = nil
+
+-- snap_to_grid can hand back 1.#INF / nan, and an infinite position hangs the engine forever, so
+-- every candidate is checked first (nan fails x == x, infinity fails the magnitude bound).
+local function is_finite_position(position)
+    if not position then
+        return false
+    end
+
+    local x, y = position.x, position.y
+
+    if x ~= x or y ~= y then
+        return false
+    end
+
+    return math.abs(x) < 100000 and math.abs(y) < 100000
+end
+
+-- Find a spot in the room for one extra spawn point, trying hard before giving up: 200 random
+-- points inside the room bounds, snapped to the nav grid and validated against the group's radius.
+local function find_room_spawn_point(node, group)
+    if not node or not node.world_bounds then
+        return nil
+    end
+
+    local bounds = node.world_bounds
+    local span_x = bounds.max_x - bounds.min_x
+    local span_y = bounds.max_y - bounds.min_y
+    local radius = group.is_spawner and 3 or 1.5
+
+    for _ = 1, 200 do
+        local candidate = Vector3(bounds.min_x + span_x * math.random(), bounds.min_y + span_y * math.random(), 0)
+        local position, found = QueryManager.nav_grid:snap_to_grid(candidate, 10, -50, 50)
+
+        if found and is_finite_position(position) and QueryManager:can_stand_here(position, radius) then
+            return {
+                position = Vector3Aux.box({}, position),
+                group = group,
+            }
+        end
+    end
+
+    return nil
+end
+
+-- Drop the Spawner slider's stones into the room as their own spawn points, after the engine has
+-- placed the room's mobs, so they no longer compete for the engine's limited placement attempts.
+local function add_stones_to_room(self, node, spawn_points)
+    local units = get_environment_spawner_units(self)
+
+    if #units == 0 then
+        return
+    end
+
+    local count = math.max(0, math.min(10, math.floor(tonumber(ChaosMode.CONFIG.controlled_chaos_spawners) or 0)))
+
+    for _ = 1, count do
+        local spawn_point = find_room_spawn_point(node, {
+            -- Mirrors the engine's expanded spawner group, so ColosseumStones sees a normal endless
+            -- spawner and swaps it for one of its own stones.
+            is_spawner = true,
+            enemy_infos = {
+                {
+                    unit_path = units[math.random(#units)],
+                    max = { [1] = 1, [4] = 1 },
+                },
+            },
+        })
+
+        if spawn_point then
+            spawn_points[#spawn_points + 1] = spawn_point
+        end
+    end
+end
+
+-- Drop each enabled sub-boss into the room as its own spawn points, using that sub-boss's slider as
+-- the number to try for.
+local function add_subbosses_to_room(self, node, spawn_points)
+    for _, unit_path in ipairs(get_environment_subboss_units(self)) do
+        local count = math.max(0, math.min(10, math.floor(tonumber(ChaosMode.CONFIG.boss_count[unit_path]) or 0)))
+
+        for _ = 1, count do
+            local spawn_point = find_room_spawn_point(node, {
+                enemy_infos = {
+                    {
+                        unit_path = unit_path,
+                        max = { [1] = 1, [4] = 1 },
+                    },
+                },
+            })
+
+            if spawn_point then
+                spawn_points[#spawn_points + 1] = spawn_point
+            end
+        end
+    end
+end
 
 _G.endlessshop_config = _G.endlessshop_config or {}
 _G.endlessshop_config.dead_broke = _G.endlessshop_config.dead_broke or false
@@ -265,7 +458,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                             end
                         end
                         
-                        if group.is_spawner and not group.can_spawn_in_corridors then
+                        if not ChaosMode.CONFIG.controlled_chaos and group.is_spawner and not group.can_spawn_in_corridors then
                             local allow = true
                             if env_name == "d01_caves" then
                                 if group.enemy_infos then
@@ -316,6 +509,10 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         end, MOD_NAME .. ".ProceduralSpawningManager.clear", MOD_NAME)
 
         Mods.hook:set_object_path("ProceduralSpawningManager", "create_spawn_points", function(orig, self, node, create_for_encounters, spawn_death, ...)
+            if create_for_encounters then
+                encounter_node = node
+            end
+
             if not create_for_encounters and not spawn_death then
                 if ChaosMode and ChaosMode.CONFIG.mode ~= "normal" then
                     -- Knossos proximity culling
@@ -338,6 +535,24 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             
             return orig(self, node, create_for_encounters, spawn_death, ...)
         end, MOD_NAME .. ".ProceduralSpawningManager.create_spawn_points", MOD_NAME)
+
+        -- Sub-bosses and spawner stones get their own pass: once the engine has placed the room's
+        -- mobs, the sliders drop that many of each in as extra spawn points. build_encounter stores
+        -- the very spawn_points table the wave spawns, so anything appended here is picked up by
+        -- start_first_encounter_wave.
+        Mods.hook:set_object_path("ProceduralSpawningManager", "build_encounter", function(orig, self, spawn_points, credits, ...)
+            orig(self, spawn_points, credits, ...)
+
+            if ChaosMode and ChaosMode.CONFIG.mode ~= "normal" then
+                if ChaosMode.CONFIG.controlled_chaos then
+                    add_stones_to_room(self, encounter_node, spawn_points)
+                end
+
+                if ChaosMode.CONFIG.bosses_enabled then
+                    add_subbosses_to_room(self, encounter_node, spawn_points)
+                end
+            end
+        end, MOD_NAME .. ".ProceduralSpawningManager.build_encounter", MOD_NAME)
 
         Mods.hook:set_object_path("ProceduralSpawningManager", "spawn_at_point", function(orig, self, spawn_point, setup_info, ...)
             if ChaosMode and ChaosMode.CONFIG.mode ~= "normal" then
