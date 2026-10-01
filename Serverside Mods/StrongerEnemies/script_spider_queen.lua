@@ -4,6 +4,16 @@ local MOD_DESCRIPTION = "Adds new abilities to the Spider Queen"
 
 
 local MOD_NAME, log_message = Mods.init_mod()
+
+-- Chances the Spider Queen fires a poison projectile off a cast; overridable from the mod UI.
+local function spin_web_chance()
+    return StrongerEnemies.get_chance("spider_queen", "spin_web_chance", 1.00)
+end
+
+local function lay_eggs_chance()
+    return StrongerEnemies.get_chance("spider_queen", "lay_eggs_chance", 1.00)
+end
+
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
@@ -11,10 +21,13 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
 
         if result.abilities.spin_web.events[1] then
             result.abilities.spin_web.events[1].on_enter_custom = function (ability_event_handler, event)
+                if math.random() >= spin_web_chance() then
+                    return
+                end
+
                 local caster_unit = event.caster_unit
                 
-                -- Multiplayer safety: validate caster exists and is alive
-                if not caster_unit or not Unit.alive(caster_unit) then
+                if not StrongerEnemies.is_enabled("spider_queen") or not caster_unit or not Unit.alive(caster_unit) then
                     return
                 end
 
@@ -33,10 +46,14 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
 
         if result.abilities.lay_eggs.events[1] then
             result.abilities.lay_eggs.events[1].on_enter_custom = function (ability_event_handler, event)
+                if math.random() >= lay_eggs_chance() then
+                    return
+                end
+
                 local caster_unit = event.caster_unit
                 
                 -- Multiplayer safety: validate caster exists and is alive
-                if not caster_unit or not Unit.alive(caster_unit) then
+                if not StrongerEnemies.is_enabled("spider_queen") or not caster_unit or not Unit.alive(caster_unit) then
                     return
                 end
 

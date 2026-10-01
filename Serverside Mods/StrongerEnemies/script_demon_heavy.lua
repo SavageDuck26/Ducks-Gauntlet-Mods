@@ -5,6 +5,27 @@ local MOD_DESCRIPTION = "Adds new abilities to the Eye Demon"
 local MOD_NAME, log_message = Mods.init_mod()
 local EYE_SORC_TARGET_RANGE = 45
 
+-- Cast chances for the Eye Demon's extra attacks; overridable from the mod UI.
+local function super_nova_orb_chance()
+    return StrongerEnemies.get_chance("demon_heavy", "super_nova_orb_chance", 1.00)
+end
+
+local function confusing_glare_shield_chance()
+    return StrongerEnemies.get_chance("demon_heavy", "confusing_glare_shield_chance", 1.00)
+end
+
+local function demon_egg_orb_chance()
+    return StrongerEnemies.get_chance("demon_heavy", "demon_egg_orb_chance", 1.00)
+end
+
+local function super_nova_hover_chance()
+    return StrongerEnemies.get_chance("demon_heavy", "super_nova_hover_chance", 1.00)
+end
+
+local function super_nova_mortar_chance()
+    return StrongerEnemies.get_chance("demon_heavy", "super_nova_mortar_chance", 1.00)
+end
+
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
@@ -12,17 +33,19 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
 
         if result.abilities.super_nova_start.on_complete then
             result.abilities.super_nova_start.on_complete.custom_callback = function (ability_component, unit, ability)
-                if not EntityAux.owned(unit) or not Unit.alive(unit) then
+                if not StrongerEnemies.is_enabled("demon_heavy") or not EntityAux.owned(unit) or not Unit.alive(unit) then
                     return
                 end
 
-                local command = TempTableFactory:get_map(
-                    "ability_name", "sinister_orb",
-                    "settings_path", "equipment/wizard/weapon02"
-                )
-                EntityAux.queue_command_master(unit, "ability", "execute_ability", command)
+                if math.random() < super_nova_orb_chance() then
+                    local command = TempTableFactory:get_map(
+                        "ability_name", "sinister_orb",
+                        "settings_path", "equipment/wizard/weapon02"
+                    )
+                    EntityAux.queue_command_master(unit, "ability", "execute_ability", command)
+                end
 
-                if StrongerEnemies.enabled then
+                if StrongerEnemies.is_enabled("demon_heavy") and StrongerEnemies.is_nightmare() and math.random() < super_nova_hover_chance() then
                     local command = TempTableFactory:get_map(
                         "ability_name", "sinister_orb_hover",
                         "settings_path", "equipment/wizard/weapon02"
@@ -36,7 +59,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             result.abilities.super_nova_event_data.on_enter_custom = function (ability_event_handler, event)
                 local owner = event.owner_unit
 
-                if StrongerEnemies.enabled then
+                if StrongerEnemies.is_enabled("demon_heavy") and StrongerEnemies.is_nightmare() and math.random() < super_nova_mortar_chance() then
                     if not EntityAux.owned(owner) then
                         return
                     end
@@ -77,7 +100,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         if result.abilities.confusing_glare then
             result.abilities.confusing_glare.on_enter = {
                 custom_callback = function (ability_component, unit, ability)
-                    if EntityAux.owned(unit) then
+                    if StrongerEnemies.is_enabled("demon_heavy") and EntityAux.owned(unit) and math.random() < confusing_glare_shield_chance() then
                         local predicates = {
                             closure(StateAux.predicate_faction, FactionComponent.faction_mask("evil")),
                             function (component, caster, context, target_unit)
@@ -105,7 +128,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         if result.abilities.demon_egg then
             result.abilities.demon_egg.on_enter = {
                 custom_callback = function (ability_component, unit, ability)
-                    if EntityAux.owned(unit) then
+                    if StrongerEnemies.is_enabled("demon_heavy") and EntityAux.owned(unit) and math.random() < demon_egg_orb_chance() then
                         local command = TempTableFactory:get_map(
                             "ability_name", "sinister_orb",
                             "settings_path", "equipment/wizard/weapon02"

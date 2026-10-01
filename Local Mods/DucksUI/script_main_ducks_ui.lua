@@ -49,7 +49,9 @@ local REGISTERED_MODS = {
     "MoreCrowns",
     "PerformanceChanges",
     "RandomUrns",
+    "StrongerEnemies",
     "Summoners",
+    "TrialsUI",
 }
 
 local current_overlay_widget = nil
@@ -281,7 +283,9 @@ local function create_duck_overlay_ui()
         {id = "more_crowns_config", text = "MoreCrowns Config", callback = "MoreCrowns.show_config()", global = "MoreCrowns", func = "show_config"},
         {id = "performance_config", text = "Performance Config", callback = "PerformanceChanges.show_config()", global = "PerformanceChanges", func = "show_config"},
         {id = "randomurns_config", text = "RandomUrns Config", callback = "RandomUrns.show_config()", global = "RandomUrns", func = "show_config"},
+        {id = "stronger_enemies_config", text = "StrongerEnemies Config", callback = "StrongerEnemies.show_config()", global = "StrongerEnemies", func = "show_config"},
         {id = "summoners_config", text = "Summoners Config", callback = "Summoners.show_config()", global = "Summoners", func = "show_config"},
+        {id = "trials_config", text = "Trials Config", callback = "TrialsUI.show_config()", global = "TrialsUI", func = "show_config"},
     }
     
     -- Filter to only include buttons whose mod is actually loaded

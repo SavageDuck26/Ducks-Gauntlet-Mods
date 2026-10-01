@@ -1,6 +1,6 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.0.0"
+local MOD_VERSION = "1.1.0"
 local MOD_DESCRIPTION = "Modifies dialogue trigger cooldowns and optional dialogue availability"
 
 local MOD_NAME, log_message = Mods.init_mod()
@@ -239,31 +239,65 @@ function DialogueFrequency.hide_config()
     current_config_widget = nil
 end
 
--- =================================================================================================
--- Hook Logic
--- =================================================================================================
+local scaled_triggers = {}
+local scaled_multiplier = nil
 
-Mods.hook:set_object(_G, "require", function(orig, path, ...)
-    local result = orig(path, ...)
+local function get_scaled_trigger(trigger_id, trigger)
+    local multiplier = (DialogueFrequency.CONFIG and DialogueFrequency.CONFIG.cooldown_multiplier) or 1
 
-    if path == "lua/managers/vo_manager" then 
-        Mods.hook:set_object_path("VO_Manager", "on_script_reload", function(orig, self, ...)
-            orig(self, ...)
-            
-            local config = DialogueFrequency.CONFIG
-            local triggers = self._vo_triggers
-            
-            for trigger_id, trigger in pairs(triggers) do
-                if config.remove_optional_types and trigger.type == "optional" then
-                    triggers[trigger_id] = nil
-
-                elseif trigger.cooldown then
-                    trigger.cooldown = trigger.cooldown * config.cooldown_multiplier
-                end
-            end
-            
-        end, MOD_NAME .. ".VO_Manager.on_script_reload", MOD_NAME)
-
+    if scaled_multiplier ~= multiplier then
+        scaled_triggers = {}
+        scaled_multiplier = multiplier
     end
-    return result
-end, MOD_NAME .. ".require", MOD_NAME)
+
+    local scaled = scaled_triggers[trigger_id]
+
+    if scaled then
+        return scaled
+    end
+
+    -- Copy rather than edit the loaded settings table: on_script_reload rebuilds it, and a shared
+    -- table would end up scaled twice.
+    scaled = {}
+
+    for key, value in pairs(trigger) do
+        scaled[key] = value
+    end
+
+    if scaled.cooldown then
+        scaled.cooldown = scaled.cooldown * multiplier
+    end
+
+    if scaled.fork_cooldown then
+        scaled.fork_cooldown = scaled.fork_cooldown * multiplier
+    end
+
+    scaled_triggers[trigger_id] = scaled
+
+    return scaled
+end
+
+Mods.hook:set_object_path("VO_Manager", "get_trigger", function(orig, self, trigger_id)
+    local trigger = orig(self, trigger_id)
+
+    if not trigger then
+        return trigger
+    end
+
+    local config = DialogueFrequency.CONFIG
+
+    -- nil reads as "no such trigger" to _can_play and vo_server, which is what removal means here.
+    if config and config.remove_optional_types and trigger.type == "optional" then
+        return nil
+    end
+
+    return get_scaled_trigger(trigger_id, trigger)
+end, MOD_NAME .. ".VO_Manager.get_trigger", MOD_NAME)
+
+-- The trigger table is re-required here, so the cached copies are stale.
+Mods.hook:set_object_path("VO_Manager", "on_script_reload", function(orig, self, ...)
+    orig(self, ...)
+
+    scaled_triggers = {}
+    scaled_multiplier = nil
+end, MOD_NAME .. ".VO_Manager.on_script_reload", MOD_NAME)

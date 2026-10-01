@@ -7,6 +7,16 @@ local MOD_DESCRIPTION = "No Skullcoins"
 local MOD_NAME, log_message = Mods.init_mod(nil, "mods/DeadMansHand/DeadMansHand.lua")
 _G.deadmanshand_active = true
 
+-- TrialsUI owns the on/off switch for this trial. Fall back to the mod's own flag when TrialsUI is
+-- not loaded, so the trial still works without it.
+local function is_active()
+    if TrialsUI then
+        return TrialsUI.is_enabled("deadmanshand")
+    end
+
+    return _G.deadmanshand_active ~= false
+end
+
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
@@ -22,12 +32,24 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         end
 
         GameServer.rpc_revive_request = function(self, sender, player_go_id)
+            if not is_active() then
+                return GameServer._deadmanshand_original_revive_request(self, sender, player_go_id)
+            end
+
             self.network_router:transmit_to(sender, "from_server_revive_request_denied", player_go_id)
         end
         GameServer.rpc_revive_for_free_request = function(self, sender, player_go_id)
+            if not is_active() then
+                return GameServer._deadmanshand_original_revive_for_free(self, sender, player_go_id)
+            end
+
             self.network_router:transmit_to(sender, "from_server_revive_request_denied", player_go_id)
         end
         GameServer.rpc_revive_with_hp_ratio_request = function(self, sender, player_go_id, hp_ratio)
+            if not is_active() then
+                return GameServer._deadmanshand_original_revive_with_hp_ratio(self, sender, player_go_id, hp_ratio)
+            end
+
             if hp_ratio == 0.1 then
                 return GameServer._deadmanshand_original_revive_with_hp_ratio(self, sender, player_go_id, hp_ratio)
             else
@@ -37,6 +59,10 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
 
         -- Zero the coin counter from inside the server update itself.
         Mods.hook:set_object(GameServer, "update", function(orig, self, dt)
+            if not is_active() then
+                return orig(self, dt)
+            end
+
             local plm = rawget(_G, "PartyLeadManager")
 
             if plm and plm.party_data and plm.party_data.skull_coins_protected and plm.network_session and plm.party_id then
@@ -66,11 +92,14 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             local orig_draw_ui_game = GameHud.draw_ui_game
             GameHud.draw_ui_game = function(self, dt)
                 orig_draw_ui_game(self, dt)
-                if self.widget_lookup and self.widget_lookup.skull_coins then
-                    self.widget_lookup.skull_coins:set_text("0")
-                end
-                if self.widget_lookup and self.widget_lookup.skull_coins_shadow then
-                    self.widget_lookup.skull_coins_shadow:set_text("0")
+
+                if is_active() then
+                    if self.widget_lookup and self.widget_lookup.skull_coins then
+                        self.widget_lookup.skull_coins:set_text("0")
+                    end
+                    if self.widget_lookup and self.widget_lookup.skull_coins_shadow then
+                        self.widget_lookup.skull_coins_shadow:set_text("0")
+                    end
                 end
             end
         else

@@ -2,6 +2,14 @@
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Adds new abilities to the Necromancer enemy"
 
+-- Chances the Necromancer tops a cast with an orb / shield; overridable from the mod UI.
+local function winter_orb_chance()
+    return StrongerEnemies.get_chance("necromancer", "winter_orb_chance", 0.50)
+end
+
+local function shield_chance()
+    return StrongerEnemies.get_chance("necromancer", "shield_chance", 0.20)
+end
 
 local MOD_NAME, log_message = Mods.init_mod()
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
@@ -12,11 +20,10 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         if result.abilities.ice_field.events[2] then
             result.abilities.ice_field.events[2].on_exit_custom = function (ability_event_handler, event)
 
-                if math.random() > 0.50 then
+                if not StrongerEnemies.is_enabled("necromancer") or math.random() > winter_orb_chance() then
                     return
                 end
                 local caster_unit = event.caster_unit
-                -- Multiplayer safety: validate caster exists and is alive
                 if not caster_unit or not Unit.alive(caster_unit) then
                     return
                 end
@@ -40,7 +47,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                     original_beam_on_exit(ability_event_handler, event)
                 end
                 
-                if math.random() > 0.20 then
+                if not StrongerEnemies.is_enabled("necromancer") or math.random() > shield_chance() then
                     return
                 end
                 local caster_unit = event.caster_unit

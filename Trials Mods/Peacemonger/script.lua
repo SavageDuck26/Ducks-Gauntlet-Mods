@@ -7,6 +7,11 @@ local MOD_DESCRIPTION = "If more than 1 kill, Trial is failed."
 local MOD_NAME, log_message = Mods.init_mod(nil, "mods/Peacemonger/Peacemonger.lua")
 Peacemonger = Peacemonger or {}
 
+-- TrialsUI owns the on/off switch for this trial. A missing config reads as enabled.
+local function is_active()
+    return TrialsUI == nil or TrialsUI.is_enabled("peacemonger")
+end
+
 Peacemonger.check_kills = function(kills)
     if kills == 1 then
         AddUtility.show_text("top", "Peacemonger Trial: " .. kills .. " kill(s).", 5, "purple", 48, "PeacemongerTrial")
@@ -29,7 +34,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             
             if command_name == "avatar_killed_something" then
                 local victim_type = data.victim_type
-                if victim_type == "monster" then
+                if victim_type == "monster" and is_active() then
                     local kills = state.enemy_kills or 0
                     Peacemonger.check_kills(kills)
                 end

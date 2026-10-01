@@ -37,6 +37,11 @@ LazyHeroes.allowed_inputs = {
 -- avatars are never "lazy", so their AI keeps attacking even after the hero
 -- drops the crown.
 LazyHeroes.is_lazy = function(avatar_unit)
+    -- TrialsUI owns the on/off switch for this trial. A missing config reads as enabled.
+    if TrialsUI and not TrialsUI.is_enabled("laziesthero") then
+        return false
+    end
+
     local player_info = PlayerManager:get_player_info_by_avatar(avatar_unit)
 
     if not player_info or not player_info.is_local_player then
@@ -47,7 +52,13 @@ LazyHeroes.is_lazy = function(avatar_unit)
     local stats_state = player_unit and EntityAux.state_master(player_unit, "stats")
     local has_crown = stats_state and stats_state.has_crown
 
-    if LazyHeroes.is_cursed then
+    local cursed = LazyHeroes.is_cursed
+
+    if TrialsUI then
+        cursed = TrialsUI.is_cursed("laziesthero")
+    end
+
+    if cursed then
         return not not has_crown
     else
         return not has_crown
