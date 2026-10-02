@@ -1,6 +1,6 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "4.2.0"
+local MOD_VERSION = "4.3.0"
 local MOD_DESCRIPTION = "Chaos and Hell modes, configurable difficulty modes"
 
 
@@ -157,6 +157,14 @@ local function is_finite_position(position)
     return math.abs(x) < 100000 and math.abs(y) < 100000
 end
 
+-- The engine spawns interpolate_increasing(enemy_info.max, PlayerManager:num_players()) of every
+-- unit, so a group written as max = {[1] = 4, [4] = 6} quietly grows with the lobby. ChaosMode's
+-- additions are meant to be the same fight for 1-4 players, so anything the mod places carries a
+-- max that resolves to the same count for every player count.
+local function flat_max(count)
+    return { [1] = count, [2] = count, [3] = count, [4] = count }
+end
+
 -- Find a spot in the room for one extra spawn point, trying hard before giving up: 200 random
 -- points inside the room bounds, snapped to the nav grid and validated against the group's radius.
 local function find_room_spawn_point(node, group)
@@ -193,7 +201,15 @@ local function add_stones_to_room(self, node, spawn_points)
         return
     end
 
-    local count = math.max(0, math.min(10, math.floor(tonumber(ChaosMode.CONFIG.controlled_chaos_spawners) or 0)))
+    local slider = math.max(0, math.min(10, math.floor(tonumber(ChaosMode.CONFIG.controlled_chaos_spawners) or 0)))
+
+    if slider == 0 then
+        return
+    end
+
+    -- The slider is a per-room ceiling, not a fixed count: rolling the number here is what stops
+    -- every room in a floor being a carbon copy of the last one.
+    local count = math.random(math.ceil(slider / 2), slider)
 
     for _ = 1, count do
         local spawn_point = find_room_spawn_point(node, {
@@ -203,7 +219,7 @@ local function add_stones_to_room(self, node, spawn_points)
             enemy_infos = {
                 {
                     unit_path = units[math.random(#units)],
-                    max = { [1] = 1, [4] = 1 },
+                    max = flat_max(1),
                 },
             },
         })
@@ -214,18 +230,20 @@ local function add_stones_to_room(self, node, spawn_points)
     end
 end
 
--- Drop each enabled sub-boss into the room as its own spawn points, using that sub-boss's slider as
--- the number to try for.
+-- Drop each enabled sub-boss into the room as its own spawn points. The slider is the ceiling for
+-- that sub-boss, so each room rolls its own mix (0..slider) instead of every room fielding one of
+-- every enabled sub-boss.
 local function add_subbosses_to_room(self, node, spawn_points)
     for _, unit_path in ipairs(get_environment_subboss_units(self)) do
-        local count = math.max(0, math.min(10, math.floor(tonumber(ChaosMode.CONFIG.boss_count[unit_path]) or 0)))
+        local slider = math.max(0, math.min(10, math.floor(tonumber(ChaosMode.CONFIG.boss_count[unit_path]) or 0)))
+        local count = slider > 0 and math.random(0, slider) or 0
 
         for _ = 1, count do
             local spawn_point = find_room_spawn_point(node, {
                 enemy_infos = {
                     {
                         unit_path = unit_path,
-                        max = { [1] = 1, [4] = 1 },
+                        max = flat_max(1),
                     },
                 },
             })
@@ -448,11 +466,19 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             for env_name, env in pairs(result[4]) do
                 for _, group_list in pairs(env.floor_type_to_groups) do
                     for _, group in ipairs(group_list) do
-                        if group.enemy_infos then
+                        if group.is_spawner and group.enemy_infos then
+                            -- The engine expands a spawner group into
+                            -- interpolate_increasing(max, num_players()) copies before spawning it,
+                            -- so a 4-player lobby silently gets extra towers out of the level's own
+                            -- spawners. Pin every spawner to its 1-player amount (this is what the
+                            -- old spawner_ghost special case did); the Spawner Stones slider is then
+                            -- the only flat source of extra towers.
                             for _, enemy_info in ipairs(group.enemy_infos) do
-                                if enemy_info.unit_path == "spawner_ghost" and enemy_info.max then
+                                if enemy_info.max then
+                                    local flat = math.interpolate_increasing(enemy_info.max, 1)
+
                                     for k in pairs(enemy_info.max) do
-                                        enemy_info.max[k] = 1 -- Set max for spawner_ghost to 1 in all groups
+                                        enemy_info.max[k] = flat
                                     end
                                 end
                             end
@@ -508,6 +534,35 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             return orig(self, ...)
         end, MOD_NAME .. ".ProceduralSpawningManager.clear", MOD_NAME)
 
+        -- The engine expands every unit by player count when it spawns
+        -- (interpolate_increasing(enemy_info.max, PlayerManager:num_players())), so with ChaosMode's
+        -- flat credit budget a 2-4 player lobby silently fields ~1.5-2x the enemies the mode was
+        -- tuned for. Re-pin each group to its 1-player amounts so the fight is the same for 1-4
+        -- players; the mod's own stones/sub-bosses are flat already (see flat_max).
+        Mods.hook:set_object_path("ProceduralSpawningManager", "select_groups", function(orig, self, node, credits, is_encounter, ...)
+            local groups = orig(self, node, credits, is_encounter, ...)
+
+            if ChaosMode and ChaosMode.CONFIG.mode ~= "normal" and groups then
+                for i, group in ipairs(groups) do
+                    -- Copies, not in-place edits: the group tables are shared with the engine's
+                    -- settings and with the credit pass that already ran in orig.
+                    local pinned = table.clone(group)
+                    local enemy_infos = {}
+
+                    for j, enemy_info in ipairs(group.enemy_infos) do
+                        local info = table.clone(enemy_info)
+                        info.max = flat_max(math.interpolate_increasing(enemy_info.max, 1))
+                        enemy_infos[j] = info
+                    end
+
+                    pinned.enemy_infos = enemy_infos
+                    groups[i] = pinned
+                end
+            end
+
+            return groups
+        end, MOD_NAME .. ".ProceduralSpawningManager.select_groups", MOD_NAME)
+
         Mods.hook:set_object_path("ProceduralSpawningManager", "create_spawn_points", function(orig, self, node, create_for_encounters, spawn_death, ...)
             if create_for_encounters then
                 encounter_node = node
@@ -537,9 +592,9 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         end, MOD_NAME .. ".ProceduralSpawningManager.create_spawn_points", MOD_NAME)
 
         -- Sub-bosses and spawner stones get their own pass: once the engine has placed the room's
-        -- mobs, the sliders drop that many of each in as extra spawn points. build_encounter stores
-        -- the very spawn_points table the wave spawns, so anything appended here is picked up by
-        -- start_first_encounter_wave.
+        -- mobs, the sliders roll a per-room amount of each in as extra spawn points. build_encounter
+        -- stores the very spawn_points table the wave spawns, so anything appended here is picked up
+        -- by start_first_encounter_wave.
         Mods.hook:set_object_path("ProceduralSpawningManager", "build_encounter", function(orig, self, spawn_points, credits, ...)
             orig(self, spawn_points, credits, ...)
 

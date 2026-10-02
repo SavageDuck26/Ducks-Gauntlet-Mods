@@ -15,7 +15,7 @@
 *Proposed Fix:* Check a set global in NoGhosts to re-roll spawns if found.
 
 ## Mod Suggestions (by priority):
-- Culling system fix for Knossos and Alliances, too many bosses/lag.
+- Culling system fix for Knossos and Alliances, too many bosses/lag. (Partly implemented, needs testing and maybe updates.)
 - Increase Eye Boss threat range.
 - When a player dies, revive them as Lazy ,for the next floor only.
 - Players able to swap in game between all 3 potion abilities.
