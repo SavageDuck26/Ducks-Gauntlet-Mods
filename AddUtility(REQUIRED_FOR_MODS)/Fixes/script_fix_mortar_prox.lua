@@ -24,6 +24,3 @@ Mods.hook:set_object_path("PredictionAux", "is_event_authorative", function(orig
 
     return orig(performer_unit, recipient_unit, peer)
 end, MOD_NAME .. ".PredictionAux.is_event_authorative", MOD_NAME)
-
-
--- NEEDS TESTER, UNCONFIRMED
