@@ -14,6 +14,12 @@
 *Bug:* No ghost mod + Alliance mod does have ghosts in game. (Reported by Siopilos)
 *Proposed Fix:* Check a set global in NoGhosts to re-roll spawns if found.
 
+*Bug:* Lazy mod, when Lazy is active, Lazy can pick up balls/barrels but cannot throw them. (Reported by Siopilos)
+*Proposed Fix:* N/A (This mod is driving me insane :D)
+
+*Bug:* Enemy ignore bug: Sometimes enemies ignore certain players. Happens when using Doppelgangers, if a player is the “second doppelganger” they become invisible to the host.
+*Proposed Fix:* Overhaul entire system, too many bugs present. Assign unique IDs?
+
 ## Mod Suggestions (by priority):
 - Culling system fix for Knossos and Alliances, too many bosses/lag. (Partly implemented, needs testing and maybe updates.)
 - Increase Eye Boss threat range.
