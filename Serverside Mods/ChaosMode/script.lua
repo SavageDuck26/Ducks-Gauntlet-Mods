@@ -1,6 +1,6 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "4.3.0"
+local MOD_VERSION = "4.3.1"
 local MOD_DESCRIPTION = "Chaos and Hell modes, configurable difficulty modes"
 
 
@@ -671,6 +671,28 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             end
             return credits
         end, MOD_NAME .. ".ProceduralSpawningManager.get_corridor_credits", MOD_NAME)
+
+        -- Endless raises the spawn budget every floor it descends:
+        -- EndlessServer.change_dungeon -> set_encounter_credits_multiplier(1 + (floor_index - 1) * 2 / 10).
+        -- The lava finale of each loop (endless floor indices 16-18, the three lava_endless_02_demon
+        -- floors before the loop/teleport) sits at the top of that ramp (~4.0-4.4x) and floods the
+        -- hallways. Hold just those three floors at the budget the floors before them use (index 15 ->
+        -- 3.8x) so they match the rest of the run. The campaign's own fixed 2.6 never reaches here.
+        local ENDLESS_LAVA_FIRST = 16
+        local ENDLESS_LAVA_LAST = 18
+        local ENDLESS_LAVA_MULTIPLIER = 1 + (ENDLESS_LAVA_FIRST - 2) * 2 / 10
+
+        Mods.hook:set_object_path("ProceduralSpawningManager", "set_encounter_credits_multiplier", function(orig, self, multiplier, ...)
+            if Game and Game.get_game_type and Game:get_game_type() == _G.GAME_TYPE_ENDLESS then
+                local floor_index = EndlessServer and EndlessServer:get_floor_index()
+
+                if floor_index and floor_index >= ENDLESS_LAVA_FIRST and floor_index <= ENDLESS_LAVA_LAST then
+                    multiplier = math.min(multiplier, ENDLESS_LAVA_MULTIPLIER)
+                end
+            end
+
+            return orig(self, multiplier, ...)
+        end, MOD_NAME .. ".ProceduralSpawningManager.set_encounter_credits_multiplier", MOD_NAME)
 
         -- disable stand/frustum checks probabilistically according to above
         Mods.hook:set_object_path("QueryManager", "can_stand_here", function(orig, self, position, radius, ...)

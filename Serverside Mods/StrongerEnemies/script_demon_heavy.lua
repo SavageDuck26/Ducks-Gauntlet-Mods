@@ -58,8 +58,23 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         if result.abilities.super_nova_event_data then
             result.abilities.super_nova_event_data.on_enter_custom = function (ability_event_handler, event)
                 local owner = event.owner_unit
+                local ability = event.parent_ability
 
-                if StrongerEnemies.is_enabled("demon_heavy") and StrongerEnemies.is_nightmare() and math.random() < super_nova_mortar_chance() then
+                -- One roll for the whole nova, not one per bolt. super_nova_start and super_nova_end are
+                -- separate abilities, so the start rolls once and writes the result to the boss; every
+                -- later bolt, including the end's, reuses it. The start rolls first every nova, which
+                -- refreshes the stored value.
+                if ability.mortar_rolled == nil then
+                    if event.ability_name == "super_nova_start" then
+                        ability.mortar_rolled = StrongerEnemies.is_enabled("demon_heavy") and StrongerEnemies.is_nightmare() and math.random() < super_nova_mortar_chance()
+
+                        Unit.set_data(owner, "nova_mortars", ability.mortar_rolled)
+                    else
+                        ability.mortar_rolled = Unit.get_data(owner, "nova_mortars")
+                    end
+                end
+
+                if ability.mortar_rolled then
                     if not EntityAux.owned(owner) then
                         return
                     end

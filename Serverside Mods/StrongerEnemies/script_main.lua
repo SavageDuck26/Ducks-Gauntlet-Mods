@@ -1,6 +1,6 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.6.0"
+local MOD_VERSION = "1.6.2"
 local MOD_DESCRIPTION = "Add abilities to enemies."
 
 local MOD_NAME, log_message = Mods.init_mod()
@@ -274,9 +274,9 @@ local function ability_is(ability, ability_name, settings_path)
     return settings_path == nil or static_ability.settings_path == settings_path
 end
 
--- AbilityEventAux.is_event_done only consults the query for a projectile, so interrupting the parent
--- ability does not stop one: marking the event done is what makes
--- AbilityEventHandler.remove_done_events despawn its effect unit and destroy the query.
+-- AbilityEventAux.is_event_done ignores interruption for a projectile, so interrupting the parent
+-- ability does not stop one; marking the event done is what feeds it to
+-- AbilityEventHandler.remove_done_events.
 local function event_is(event, unit, ability_name, settings_path)
     if event.ability_name ~= ability_name then
         return false
@@ -289,14 +289,36 @@ local function event_is(event, unit, ability_name, settings_path)
     return event.caster_unit == unit or event.owner_unit == unit
 end
 
+-- remove_done_events -> AbilityEventHandler.on_event_exit destroys the event's query, which stops a
+-- projectile mid-flight, but it never destroys the spawned effect unit itself: it only fires the
+-- unit's on_event_complete flow and drops the reference. Units whose flow does not tear itself down
+-- are then left alive but no longer updated, frozen where they were (the mod's storm bomb / fire orb
+-- visuals). Destroy them here the way AbilityEventHandler.on_hit does, and clear the handle so
+-- on_event_exit does not fire a flow event at a dead unit.
 local function end_ability_events(unit, ability_name, settings_path)
     local active_events = EntityAux.get_component("ability").ability_event_handler.active_events
+    local units
 
     for i = 1, #active_events do
         local event = active_events[i]
 
         if event_is(event, unit, ability_name, settings_path) then
+            if event.unit then
+                units = units or {}
+                units[#units + 1] = event.unit
+
+                event.unit = nil
+            end
+
             event.done = true
+        end
+    end
+
+    -- Destroying a unit re-enters the engine and can prune active_events, so collect the handles first
+    -- and tear them down after the scan.
+    if units then
+        for i = 1, #units do
+            AddUtility.destroy_unit(units[i])
         end
     end
 end
@@ -371,7 +393,15 @@ StrongerEnemies.end_ability = function (unit, ability_name, settings_path)
     end
 
     end_ability_events(unit, ability_name, settings_path)
-    StrongerEnemies.clear_flow_effects(unit)
+
+    -- Only tear the caster's flow effects down when we actually interrupted a live cast. When the
+    -- ability already finished on its own (the usual case for a short cast whose projectile outlives
+    -- it) its own on_exit flow has run, and stop_effects would instead clobber whatever the unit is
+    -- casting now (the Lich's shadowbeam hand beam, say), leaving that other ability's particle
+    -- attached to its hand until the unit dies.
+    if ended > 0 then
+        StrongerEnemies.clear_flow_effects(unit)
+    end
 
     return ended
 end

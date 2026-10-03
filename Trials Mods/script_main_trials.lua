@@ -12,13 +12,13 @@ TrialsUI.loaded = true
 -- these to decide whether their behaviour is active.
 TrialsUI.CONFIG = TrialsUI.CONFIG or {
     deadmanshand = {
-        enabled = true,
+        enabled = false,
     },
     peacemonger = {
-        enabled = true,
+        enabled = false,
     },
     laziesthero = {
-        enabled = true,
+        enabled = false,
         cursed = false,
     },
 }
