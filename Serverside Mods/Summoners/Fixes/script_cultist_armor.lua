@@ -25,11 +25,17 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         -- thing that kills it. That interact fires a flow event and queues a "damage" command on the
         -- damage_receiver -- but the component defines no command_master, so the queued command is a
         -- no-op (BaseComponent.command_master just returns). The corpse's death therefore rides
-        -- entirely on its own flow and never reaches the peers that don't own it: the owner records
-        -- the kill, so its room opens, while every other peer keeps the corpse and its room keeps
-        -- waiting on it (the "leave and rejoin, then the host can open the room" bug). Own the
-        -- teardown here instead: on the owner, push the corpse through the game's own despawner,
-        -- which destroys the networked game object so every peer drops it.
+        -- entirely on its own flow and does not reliably reach the peers that don't own it, leaving the
+        -- room held open on them (the "leave and rejoin, then the host can open the room" bug).
+        --
+        -- Do NOT try to tear the corpse down from this callback (despawner:force_despawn,
+        -- EntitySpawner:despawn_entity or AddUtility.destroy_unit all crash): none of them are safe
+        -- while the interact is in flight. InteractableComponent.on_interact_result keeps using
+        -- interactable_unit after this returns (set_accepted_interactor / set_enabled), and
+        -- World.destroy_unit frees it there and then. Hand the corpse to the engine's own death ->
+        -- decay path instead: "decay" is exactly what StateCommon.decay_enter uses for every dead
+        -- enemy. It only queues work -- it broadcasts rpc_start_decay so every peer decays the corpse
+        -- too, and the final teardown is timer-based, so it runs long after the interact has finished.
         local original_interact_result = result.interactable_interact_result
 
         result.interactable_interact_result = function (component, interactable, interactor, success)
@@ -38,11 +44,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             end
 
             if success and interactable and Unit.alive(interactable) and EntityAux.owned(interactable) then
-                local despawner = FlowCallbacks.state_game and FlowCallbacks.state_game.despawner
-
-                if despawner then
-                    despawner:force_despawn(interactable)
-                end
+                EntityAux.call_master(interactable, "enemy", "decay")
             end
         end
     end
