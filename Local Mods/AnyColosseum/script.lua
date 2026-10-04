@@ -1,11 +1,11 @@
 -- =================================================================================================
 -- Author: SavageDuck26
--- Version: 1.1
+-- Version: 1.1.1
 -- Purpose: Lets you choose any colosseum level you want by cycling through them.
 -- =================================================================================================
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.1.0"
+local MOD_VERSION = "1.1.1"
 local MOD_DESCRIPTION = "Lets you choose any colosseum level you want by cycling through them."
 
 
@@ -28,42 +28,18 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
     if path == "lua/menu/screen_main_menu" then
         
         Mods.hook:set_object_path("ScreenMainMenu", "update", function(orig, self, dt, ...)
-            if Platform:get_connection_status() == Platform.CONNECTION_LOST or Platform:resumed_from_suspension() then
-                    self.menu_manager:clear_selection_history(self._screen_name)
-                    self:show_mode_buttons()
-                    update_online_required_options(self)
-                end
+            if not self.popup and self.widget then
+                local cycle_pressed = (_G.IS_PS4 and Pad1.active() and Pad1.pressed(Pad1.button_index("r1")))
+                    or (_G.IS_PC and Keyboard.pressed(Keyboard.button_index(COLOSSEUM_CHANGE_KEYBIND)))
 
-                if Platform:get_connection_status() == Platform.CONNECTION_LOST or Platform:get_connection_status() == Platform.CONNECTION_REGAINED or Platform:resumed_from_suspension() then
-                    self.motd_set = false
-
-                    update_wbid_ui(self)
-                    update_online_required_options(self)
-                end
-
-                if not self.motd_set then
-                    local title, message, link = Game:get_message_of_the_day()
-
-                    if title or message or link then
-                        update_wbid_ui(self)
-                    end
-                end
-
-                if (_G.IS_PS4 and Pad1.active() and Pad1.pressed(Pad1.button_index("r1")) or _G.IS_PC and Keyboard.pressed(Keyboard.button_index(COLOSSEUM_CHANGE_KEYBIND))) then
+                if cycle_pressed then
                     COLOSSEUM_COUNTER = COLOSSEUM_COUNTER + 1
                     ColosseumSettings:set_days_since_colosseum_start(COLOSSEUM_COUNTER - 1)
                     self:rebuild_ui()
                     self:show_mode_buttons("online")
-                    
                 end
+            end
 
-                if self.popup then
-                    self.popup:update(dt)
-
-                    if self.widget == nil then
-                        return
-                    end
-                end      
             return orig(self, dt, ...)
         end, MOD_NAME .. ".ScreenMainMenu.update", MOD_NAME)
     end

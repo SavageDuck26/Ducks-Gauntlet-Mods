@@ -1,6 +1,6 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.6.2"
+local MOD_VERSION = "1.6.3"
 local MOD_DESCRIPTION = "Add abilities to enemies."
 
 local MOD_NAME, log_message = Mods.init_mod()
@@ -264,13 +264,26 @@ end, MOD_NAME .. ".orb_statuses", MOD_NAME)
 -- still alive when the cast is cut; the ones that finished naturally first (the 3s storm bomb cap,
 -- whose 1s cast is long gone) are already orphaned by then, which is exactly the "sometimes" leftover.
 -- Destroy whatever survives the on_event_complete flow, the way AbilityEventHandler.on_hit does.
+-- Exception: an on_event_complete that hands the event unit to another ability as its caster
+-- (set_event_unit_as_caster) still needs that unit, so it is left to its own flow.
 -- =================================================================================================
 Mods.hook:set_object_path("AbilityEventHandler", "on_event_exit", function (orig, self, event, ...)
     local unit = event and event.unit
+    local follow_up = event and event.settings and event.settings.on_event_complete
+
+    -- Exception: a follow-up that takes the event unit as its caster must keep it alive.
+    -- AbilityComponent.execute_ability resolves the caster with
+    -- `Unit.alive(caster_unit) and caster_unit or unit`, so destroying the landed projectile here walks
+    -- the follow-up back onto the casting unit -- the elf mortar's on_event_complete chains
+    -- mortar_shot_explosion (and the clusterbomb) off the projectile, and with the projectile gone the
+    -- explosion's origins (0,0,0) resolve at the caster instead of the impact point. Only the elf
+    -- weapons use that flag (equipment/elf/weapon01, weapon03, weapon04), so nothing this hook was
+    -- written for changes: those units' flow tears them down on its own, as it does in vanilla.
+    local event_unit_is_caster = follow_up ~= nil and follow_up.ability ~= nil and follow_up.set_event_unit_as_caster == true
 
     local result = orig(self, event, ...)
 
-    if unit and Unit.alive(unit) then
+    if not event_unit_is_caster and unit and Unit.alive(unit) then
         AddUtility.destroy_unit(unit)
     end
 
