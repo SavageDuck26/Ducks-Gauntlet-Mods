@@ -256,6 +256,28 @@ Mods.hook:set_object_path("AbilityEventHandler", "execute_event", function (orig
 end, MOD_NAME .. ".orb_statuses", MOD_NAME)
 
 -- =================================================================================================
+-- Orphaned effect units
+--
+-- AbilityEventHandler.on_event_exit fires the effect unit's on_event_complete flow and then drops the
+-- reference (event.unit = nil) WITHOUT destroying the unit. Units whose flow does not tear itself down
+-- are left alive but no longer updated -- frozen on the spot. end_ability_events only catches units
+-- still alive when the cast is cut; the ones that finished naturally first (the 3s storm bomb cap,
+-- whose 1s cast is long gone) are already orphaned by then, which is exactly the "sometimes" leftover.
+-- Destroy whatever survives the on_event_complete flow, the way AbilityEventHandler.on_hit does.
+-- =================================================================================================
+Mods.hook:set_object_path("AbilityEventHandler", "on_event_exit", function (orig, self, event, ...)
+    local unit = event and event.unit
+
+    local result = orig(self, event, ...)
+
+    if unit and Unit.alive(unit) then
+        AddUtility.destroy_unit(unit)
+    end
+
+    return result
+end, MOD_NAME .. ".event_exit_destroy", MOD_NAME)
+
+-- =================================================================================================
 -- Ending an ability early
 --
 -- Mirrors AbilityComponent._handle_interrupt_command for one chosen ability instead of the current
@@ -298,11 +320,14 @@ end
 local function end_ability_events(unit, ability_name, settings_path)
     local active_events = EntityAux.get_component("ability").ability_event_handler.active_events
     local units
+    local ended = 0
 
     for i = 1, #active_events do
         local event = active_events[i]
 
         if event_is(event, unit, ability_name, settings_path) then
+            ended = ended + 1
+
             if event.unit then
                 units = units or {}
                 units[#units + 1] = event.unit
@@ -321,6 +346,8 @@ local function end_ability_events(unit, ability_name, settings_path)
             AddUtility.destroy_unit(units[i])
         end
     end
+
+    return ended
 end
 
 -- Cutting one of the mod's casts short (storm bomb, the fire orb) leaves the visuals its flow
@@ -376,10 +403,24 @@ local function end_ability_instance(unit, ability, state)
     return false
 end
 
+-- A culled caster has every component paused (EntityCullingManager.cull_unit ->
+-- EntityManager.pause_all_components), so it stops updating: a timed cut then cannot take effect --
+-- the flow event that would clear its visuals never runs and they are left behind frozen. Resume it
+-- for the teardown; the culler re-culls it the next time it is off screen.
+local function resume_culled(unit)
+    local culling = EntityCullingManager
+
+    if culling and culling.is_culled and culling:is_culled(unit) then
+        culling:uncull_unit(unit)
+    end
+end
+
 -- Ends every running instance of ability_name on unit, plus the events they spawned. Returns how
 -- many instances were ended.
 -- Pass settings_path when the same ability name exists in more than one weapon.
 StrongerEnemies.end_ability = function (unit, ability_name, settings_path)
+    resume_culled(unit)
+
     local ended = 0
 
     while true do
@@ -392,14 +433,14 @@ StrongerEnemies.end_ability = function (unit, ability_name, settings_path)
         ended = ended + 1
     end
 
-    end_ability_events(unit, ability_name, settings_path)
+    local events_ended = end_ability_events(unit, ability_name, settings_path)
 
-    -- Only tear the caster's flow effects down when we actually interrupted a live cast. When the
-    -- ability already finished on its own (the usual case for a short cast whose projectile outlives
-    -- it) its own on_exit flow has run, and stop_effects would instead clobber whatever the unit is
-    -- casting now (the Lich's shadowbeam hand beam, say), leaving that other ability's particle
-    -- attached to its hand until the unit dies.
-    if ended > 0 then
+    -- The event-level on_enter_flow effects (ability_bomb_fire, ability_orb_fire, ...) belong to the
+    -- events, not the ability, so they must be torn down whenever we cut events -- even when the short
+    -- ability already finished on its own. That is the storm bomb: its 1s cast is gone by the 3s cap,
+    -- so ended == 0, but the projectile and the caster's fire are still there. Firing the caster's
+    -- stop_effects is what clears them.
+    if ended > 0 or events_ended > 0 then
         StrongerEnemies.clear_flow_effects(unit)
     end
 

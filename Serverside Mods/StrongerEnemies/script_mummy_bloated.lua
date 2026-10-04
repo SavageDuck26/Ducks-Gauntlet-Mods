@@ -47,7 +47,9 @@ local ice_bomber_status = {
     },
 }
 -- ===========================================================================
-local FIRE_BURST_TIME = 0.30
+-- The fire bomber keeps the mummy's own death explosion and adds a burn to it.
+local BURN_DAMAGE_PER_SECOND = 4
+local BURN_DURATION = 5
 local function is_fire_bomber(unit)
     if math.random() < fire_bomber_chance() then
         return true
@@ -63,6 +65,8 @@ local fire_bomber_status = {
     },
 }
 -- ===========================================================================
+-- The acid and ice bombers replace the mummy's blast with a carry-and-explode elemental; the fire
+-- bomber keeps the blast (see the on_death hook) and just adds a burn to it.
 local ELEMENTALS = {
     is_acid_bomber = "gameobjects/carry/elemental_poison",
     is_ice_bomber = "gameobjects/carry/elemental_ice",
@@ -126,45 +130,46 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         if result.abilities.on_death.events[1] then
             result.abilities.on_death.events[1].on_enter_custom = function(ability_event_handler, event)
                 local owner = event.owner_unit or event.caster_unit or event.unit
-                local is_bomber = owner and (Unit.get_data(owner, "is_acid_bomber") or Unit.get_data(owner, "is_ice_bomber") or Unit.get_data(owner, "is_fire_bomber"))
+                local acid_bomber = owner and Unit.get_data(owner, "is_acid_bomber")
+                local ice_bomber = owner and Unit.get_data(owner, "is_ice_bomber")
+                local fire_bomber = owner and Unit.get_data(owner, "is_fire_bomber")
 
-                if not is_bomber then
+                if not (acid_bomber or ice_bomber or fire_bomber) then
                     -- Regular explosion
                     return
                 end
 
-                -- The bomber blast replaces the mummy's own death blast.
-                event.damage_amount = 0
-
-                if event.settings then
-                    event.settings.damage_amount = 0
-                end
-
                 local caster_unit = event.caster_unit
-                
+
                 -- Multiplayer safety: validate caster exists and is alive
                 if not caster_unit or not Unit.alive(caster_unit) then
                     return
                 end
 
-                if EntityAux.owned(caster_unit) then
-                    for data_key, unit_path in pairs(ELEMENTALS) do
-                        if Unit.get_data(caster_unit, data_key) then
-                            explode_elemental(ability_event_handler, event, unit_path)
-                        end
+                if not EntityAux.owned(caster_unit) then
+                    return
+                end
+
+                if acid_bomber or ice_bomber then
+                    -- Acid / ice drop the mummy's own blast and spawn their carry-and-explode elemental.
+                    event.damage_amount = 0
+
+                    if event.settings then
+                        event.settings.damage_amount = 0
                     end
 
-                    if Unit.get_data(caster_unit, "is_fire_bomber") then
-                        local command = TempTableFactory:get_map(
-                            "ability_name", "sinister_orb_hover",
-                            "settings_path", "equipment/wizard/weapon02"
-                        )
+                    explode_elemental(ability_event_handler, event, acid_bomber and ELEMENTALS.is_acid_bomber or ELEMENTALS.is_ice_bomber)
+                end
 
-                        EntityAux.queue_command_master(caster_unit, "ability", "execute_ability", command)
-
-                        -- Cut the orb and the rest of the hover once the first burst has landed.
-                        StrongerEnemies.end_ability_after(caster_unit, "sinister_orb_hover", FIRE_BURST_TIME)
-                    end
+                if fire_bomber and event.settings then
+                    -- The fire bomber keeps the mummy's explosion and burns whatever it catches.
+                    event.settings.status_effects = {
+                        burning = {
+                            damage_per_second = BURN_DAMAGE_PER_SECOND,
+                            duration = BURN_DURATION,
+                            interval = 1,
+                        },
+                    }
                 end
             end
         end

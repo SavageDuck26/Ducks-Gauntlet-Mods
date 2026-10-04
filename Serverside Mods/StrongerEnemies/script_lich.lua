@@ -3,10 +3,6 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Adds new abilities to the Lich"
 local MOD_NAME, log_message = Mods.init_mod()
 
--- The bomb's spiral projectiles keep flying to max_time (270 frames = 9s) after the throw, so the
--- whole cast is capped at roughly 4 seconds.
-local STORM_BOMB_CAP = 3
-
 -- Chance the Lich throws a storm bomb on top of a cast; overridable from the mod UI.
 local function storm_bomb_chance()
     return StrongerEnemies.get_chance("lich", "storm_bomb_chance", 0.12)
@@ -17,9 +13,12 @@ local function shadowdive_bomb_chance()
     return StrongerEnemies.get_chance("lich", "shadowdive_bomb_chance", 1.00)
 end
 
+-- No timed cut any more: the culler can pause the Lich mid-cast (pause_all_components), and a cut
+-- fired at a paused caster cannot take effect -- its cleanup flow never runs and leaves the visuals
+-- behind. The bomb now runs its full life; its projectile cleans itself up on completion like any
+-- other cast (AbilityEventHandler.on_event_exit destroys surviving effect units).
 local function cast_storm_bomb(caster_unit, command)
     EntityAux.queue_command_master(caster_unit, "ability", "execute_ability", command)
-    StrongerEnemies.end_ability_after(caster_unit, "storm_bomb", STORM_BOMB_CAP)
 end
 
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
