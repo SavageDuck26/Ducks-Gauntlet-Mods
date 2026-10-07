@@ -1,6 +1,6 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.3.2"
+local MOD_VERSION = "1.3.3"
 local MOD_DESCRIPTION = "Trials. Disables most inputs when not wearing the crown for the player with the mod."
 
 
@@ -65,6 +65,16 @@ LazyHeroes.is_lazy = function(avatar_unit)
     end
 end
 
+-- True while the unit is holding a carryable the engine will let go of on a throw press.
+-- StateCommonCharacter.carry_update only releases a carried object while the carrier
+-- component reports carry_state == "carrying"; every other carry_state ("liftup",
+-- "throwing", "done") ignores the press.
+LazyHeroes.is_carrying = function(unit)
+    local carrier_state = EntityAux.state_master(unit, "carrier")
+
+    return carrier_state ~= nil and carrier_state.carry_state == "carrying"
+end
+
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
@@ -103,9 +113,18 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                     local input_data = context.state.input
 
                     if input_data and input_data.is_active then
+                        local carrying = LazyHeroes.is_carrying(unit)
+                        local avatar_type = context.settings and context.settings.avatar_type
+                        local light_key = avatar_type and (avatar_type .. "_light")
+                        local heavy_key = avatar_type and (avatar_type .. "_heavy")
+
                         for key in pairs(input_data) do
                             if not LazyHeroes.allowed_inputs[key] then
-                                input_data[key] = nil
+                                local is_throw_input = carrying and (key == "throw_carryable" or key == light_key or key == heavy_key)
+
+                                if not is_throw_input then
+                                    input_data[key] = nil
+                                end
                             end
                         end
                     end
