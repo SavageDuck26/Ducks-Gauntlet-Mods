@@ -26,6 +26,7 @@ Mod Testers: Siopilos, Mitch, Ky1, JMFC77, Choco, Windmill, masterslay, Kryptic,
 - *FragileHeroes:* Causes players to die immediately from any source of damage taken. (Requested by Lein)
 - *NoCameraShake:* Removes all camera shaking from the game. (Requested by Siopilos as QoL for ChaosMode mod)
 - *NoDarkFloors:* Removes darkened endless floors from the game. (Made at the request of Siopilos)
+- *RandomHero:* Randomizes your hero whenever entering a new floor.
 - *RandomLoadout:* Randomizes your loadout whenever entering a new floor.
 
 **Serverside Mods:**

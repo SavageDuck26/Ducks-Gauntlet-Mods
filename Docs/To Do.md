@@ -8,15 +8,6 @@
 *Bug:* Pots cooldown + RandomLoadout do not display cooldown visuals correctly. (Reported by Siopilos)
 *Proposed Fix:* N/A
 
-*Bug:* RandomHero mod needs bug fixes, needs to conserve potion amounts between levels for player, which is the only known bug at this time. (Reported by Mitch)
-*Proposed Fix:* Unreleased mod. Needs to preserve amounts in vars for player.
-
-*Bug:* No ghost mod + Alliance mod does have ghosts in game. (Reported by Siopilos)
-*Proposed Fix:* Check a set global in NoGhosts to re-roll spawns if found.
-
-*Bug:* Lazy mod, when Lazy is active, Lazy can pick up balls/barrels but cannot throw them. (Reported by Siopilos)
-*Proposed Fix:* N/A (This mod is driving me insane :D)
-
 *Bug:* Enemy ignore bug: Sometimes enemies ignore certain players. Happens when using Doppelgangers, if a player is the “second doppelganger” they become invisible to the host.
 *Proposed Fix:* Overhaul entire system, too many bugs present. Assign unique IDs?
 
