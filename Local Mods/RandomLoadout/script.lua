@@ -1,6 +1,6 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.1.0"
+local MOD_VERSION = "1.2.0"
 local MOD_DESCRIPTION = "Randomizes LOCAL player loadout (talisman, weapon, relic) each endless floor."
 
 local MOD_NAME, log_message = Mods.init_mod(nil, "mods/RandomLoadout/RandomLoadout.lua")
@@ -195,11 +195,7 @@ local function randomize_local_player_loadout(player_info)
         if ProfileManager and ProfileManager.get_user then
             local ok, user = pcall(function() return ProfileManager:get_user(player_info.controller_name) end)
             if ok and user and user.get_loadout_ids_for then
-                local fallback = user:get_loadout_ids_for(avatar_type)
-                if fallback then
-                    player_info.loadout_ids = fallback
-                    loadout_ids = fallback
-                end
+                loadout_ids = user:get_loadout_ids_for(avatar_type)
             end
         end
     end
@@ -207,6 +203,14 @@ local function randomize_local_player_loadout(player_info)
     if not loadout_ids then
         return false
     end
+
+    -- UserProfile.get_loadout_ids_for returns _data.hero[avatar].loadout_selection itself, so
+    -- player_info.loadout_ids can be the player's saved lobby loadout. Rolling into that table would
+    -- rewrite the profile in place, and the next ProfileManager:save() would write the random items
+    -- to disk. Roll into a copy instead: the spawned hero keeps the random loadout, the saved lobby
+    -- loadout is left alone, and nothing new goes over the network (loadout_ids is not transmitted).
+    loadout_ids = table.clone(loadout_ids)
+    player_info.loadout_ids = loadout_ids
     
     local controller_name = player_info.controller_name
     
