@@ -1,11 +1,6 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.6
--- Purpose: Randomizes local players character each endless floor.
--- =================================================================================================
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.6.0"
+local MOD_VERSION = "1.6.1"
 local MOD_DESCRIPTION = "Randomizes each local player's character every endless floor."
 
 local MOD_NAME, log_message = Mods.init_mod(nil, "mods/RandomHero/RandomHero.lua")
@@ -45,8 +40,12 @@ end
 -- The host refuses a drop-in on a hero the party already uses (PartyLeadManager.is_avatar_type_in_use)
 -- and answers by dumping the player into the character select screen. Doppelgangers forces that
 -- check to false, so only then may the roll land on a hero another player is already using.
+-- NOTE: Doppelgangers is an optional mod, so its global may not exist at all.
+-- strict.lua errors on reading an undeclared global, so read it with rawget.
 local function duplicates_allowed()
-    return Doppelgangers and Doppelgangers.loaded == true
+    local doppelgangers = rawget(_G, "Doppelgangers")
+
+    return doppelgangers ~= nil and doppelgangers.loaded == true
 end
 
 local function get_random_avatar(current_avatar)
