@@ -1,4 +1,4 @@
-This is where I will be updating my modpack for Gauntlet Slayer Edition using the Bitesquid mod loader made by Skapp. Please read all Documentation for mods before using them.
+This is where I will be updating my modpack for Gauntlet Slayer Edition using the Bitesquid mod loader made by Skapp. Please read all Documentation for mods before using them. Modding Discord server (https://discord.com/invite/QCrzH9dVpJ).
 
 **Important Notes:**
 - update.py pulls the newest release if you choose to use it. Please never run modified python files.
