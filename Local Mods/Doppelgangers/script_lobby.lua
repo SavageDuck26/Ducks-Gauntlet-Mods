@@ -1,5 +1,5 @@
 
-local MOD_AUTHOR = "SavageDuck26/Skapp"
+local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Lobby: every slot may pick the same hero."
 
 

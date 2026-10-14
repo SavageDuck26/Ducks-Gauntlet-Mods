@@ -1,5 +1,5 @@
 
-local MOD_AUTHOR = "SavageDuck26/Skapp"
+local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "3.0.0"
 local MOD_DESCRIPTION = "Lets every player pick the same hero (doppelgangers) in co-op."
 

@@ -1,5 +1,5 @@
 
-local MOD_AUTHOR = "SavageDuck26/Skapp"
+local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "In-game: route a duplicated hero to the right player."
 
 
@@ -15,30 +15,6 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         Mods.hook:set_object_path("GameClient", "set_available_heroes", function(orig, self, available_heroes, ...)
             return orig(self, AvatarSettings.avatars, ...)
         end, MOD_NAME .. ".GameClient.set_available_heroes", MOD_NAME)
-    end
-
-    -- get_player_info_by_avatar_type returns whichever player the iteration reaches first. That
-    -- is fine while every hero is unique, but can point at a remote player once two players
-    -- share a hero. Its only callers (screen_floor_end's banked-gold / mastery / colosseum
-    -- sheets) want the local player's own record, so prefer the local player and fall back to
-    -- the engine's first match.
-    if path == "foundation/lua/player/player_manager" and PlayerManager then
-        Mods.hook:set_object_path("PlayerManager", "get_player_info_by_avatar_type", function(orig, self, avatar_type, ...)
-            local my_peer_id = Network and Network.peer_id and Network.peer_id()
-            local first_match
-
-            for _, info in self:players_iterator() do
-                if info.avatar_type == avatar_type then
-                    if info.peer_id == my_peer_id then
-                        return info
-                    end
-
-                    first_match = first_match or info
-                end
-            end
-
-            return first_match or orig(self, avatar_type, ...)
-        end, MOD_NAME .. ".PlayerManager.get_player_info_by_avatar_type", MOD_NAME)
     end
 
     -- The kill-streak banner subscribes to on_stat_event and matches by avatar_type, which both

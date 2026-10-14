@@ -1,5 +1,5 @@
 
-local MOD_AUTHOR = "SavageDuck26/Skapp"
+local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Host: accept a drop-in on a hero already in the party."
 
 
@@ -12,9 +12,14 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
     -- it sets accepted = not PartyLeadManager:is_avatar_type_in_use(avatar_type), and nothing
     -- else consults that check. Reporting "not in use" lets the drop-in through while the rest
     -- of the host's spawn handling (position, hp ratio, delayed entrance, party bookkeeping)
-    -- runs untouched. The manager only exists on the host, so the hook is inert on clients.
+    -- runs untouched. Only the host answers this gate, so the host check keeps the engine's own
+    -- answer in charge anywhere else.
     if path == "lua/managers/party_lead_manager" and PartyLeadManager then
         Mods.hook:set_object_path("PartyLeadManager", "is_avatar_type_in_use", function(orig, self, avatar_type)
+            if not _G.is_host_ducks_mods then
+                return orig(self, avatar_type)
+            end
+
             return false
         end, MOD_NAME .. ".PartyLeadManager.is_avatar_type_in_use", MOD_NAME)
     end
