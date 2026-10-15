@@ -13,6 +13,12 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
     -- query behind that gate, so answering nil lifts it. Auto-assign still hands a joining
     -- player a free hero through is_assigned, and lobby_logic's slot-swap simply stops
     -- auto-clearing the second copy - which is exactly what this mod wants.
+    --
+    -- The query is answered per board (screen_lobby and lobby_logic both resolve it locally), so
+    -- every peer sitting in the lobby needs the mod: one without it still reads the hero as locked
+    -- and force-reselects the duplicate slot. Co-op groups therefore keep clients out of the lobby
+    -- and let them join at game start, which sends them down the hotjoin path instead (all heroes
+    -- offered by script_client, drop-in accepted by the host's script_server gate).
     if path == "lua/menu/team_preview" and TeamPreview then
         Mods.hook:set_object_path("TeamPreview", "get_locked_hero_named", function(orig, self, name)
             return nil

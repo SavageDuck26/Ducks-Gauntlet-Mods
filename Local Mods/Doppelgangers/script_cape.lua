@@ -8,8 +8,14 @@ local MOD_NAME, log_message = Mods.init_mod()
 -- DOES NOT WORK YET. Crashes on level load when same cape.
 
 local function cape_already_attached(self, unit, cape)
-    for other_unit, context in pairs(self.entity_manager:get_slave_entities(self.name)) do
-        local slots = other_unit ~= unit and context.state.slots
+    local contexts = self.entity_manager and self.entity_manager:get_slave_entities(self.name)
+
+    if not contexts then
+        return false
+    end
+
+    for other_unit, context in pairs(contexts) do
+        local slots = other_unit ~= unit and context.state and context.state.slots
 
         if slots and slots.cape and slots.cape.item_id == cape then
             return true

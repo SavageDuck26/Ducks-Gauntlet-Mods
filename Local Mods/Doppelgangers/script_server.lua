@@ -16,7 +16,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
     -- answer in charge anywhere else.
     if path == "lua/managers/party_lead_manager" and PartyLeadManager then
         Mods.hook:set_object_path("PartyLeadManager", "is_avatar_type_in_use", function(orig, self, avatar_type)
-            if not _G.is_host_ducks_mods then
+            if not Doppelgangers.is_host() then
                 return orig(self, avatar_type)
             end
 

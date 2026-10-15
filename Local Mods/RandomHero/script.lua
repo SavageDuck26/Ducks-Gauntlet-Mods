@@ -15,6 +15,23 @@ RandomHero.loaded = true
 -- new player_info so the re-spawned hero keeps them.
 local SWITCH_DELAY = 0.05
 
+-- The spawn position in GameClient.spawn_avatar is host data arriving over the network
+-- (from_server_spawn_avatar*), and a revive with no living friend to fall back on can leave it
+-- non-finite. The engine spawns the avatar straight at it and spins, so validate before the engine
+-- call: NaN fails x == x, infinity fails the magnitude bound, so one check covers both.
+local POSITION_LIMIT = 100000
+
+local function is_finite(position)
+    if not position then
+        return false
+    end
+
+    local x, y, z = position.x, position.y, position.z
+
+    return x == x and y == y and z == z
+        and math.abs(x) < POSITION_LIMIT and math.abs(y) < POSITION_LIMIT and math.abs(z) < POSITION_LIMIT
+end
+
 -- Floor detection state.
 local current_floor = nil
 local pending_randomization = false
@@ -99,9 +116,22 @@ local function do_character_switch(game_client, controller_name, new_hero)
     switch_controller_name = controller_name
     switching_controllers[controller_name] = true
 
-    game_client:drop_user(controller_name)
-    game_client.entity_spawner:delete_marked_entities()
-    game_client:try_join(controller_name)
+    -- drop_user unregisters the player, and the HOST answers an unregister by dropping that player's
+    -- keys/potions on the floor (GameServer.on_player_unregistered). That state lives on the host,
+    -- so the hook below cannot swallow the drop for a client board - but the client can empty the
+    -- replicated inventory first: the host reads the empty counts when the unregister lands and has
+    -- nothing to duplicate, while saved_state keeps the real counts for the hero about to spawn.
+    if player_info and player_info.avatar_unit then
+        EntityAux.command_master_immediately(player_info.avatar_unit, "inventory", "clear_keys_and_potions")
+    end
+
+    -- Keep the inventory sync a switch tick ahead of the unregister, or the host can process the
+    -- drop before it has applied the empty counts.
+    AddUtility.delay_action(SWITCH_DELAY, function()
+        game_client:drop_user(controller_name)
+        game_client.entity_spawner:delete_marked_entities()
+        game_client:try_join(controller_name)
+    end)
 end
 
 local function finish_character_switch(game_client, player_go_id)
@@ -200,6 +230,13 @@ Mods.hook:set_object_path("GameClient", "from_server_slot_request_reply", functi
 end, MOD_NAME .. ".GameClient.from_server_slot_request_reply", MOD_NAME)
 
 Mods.hook:set_object_path("GameClient", "spawn_avatar", function(orig, self, player_go_id, position, rotation, hitpoint_ratio, ...)
+    -- The position is host data arriving over the network (from_server_spawn_avatar*); a revive
+    -- with no living friend to fall back on can leave it non-finite and the engine spawns the
+    -- avatar straight at it. Swap in the camera focus before the engine ever sees a bad value.
+    if not is_finite(position) then
+        position = CameraManager:get_focus_position()
+    end
+
     local player_info = PlayerManager:get_player_info(player_go_id)
 
     -- The hero spawned to finish a switch arrives from the host with no ratio (the engine only sends

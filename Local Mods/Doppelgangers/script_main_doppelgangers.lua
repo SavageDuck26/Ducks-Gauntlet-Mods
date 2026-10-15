@@ -18,4 +18,24 @@ local MOD_NAME, log_message = Mods.init_mod()
 Doppelgangers = Doppelgangers or {}
 Doppelgangers.loaded = true
 
+-- Which board may run the host-authority fixes (the drop-in gate in script_server and the revive /
+-- spawn positions in script_revive). Both host signals are honoured:
+--   * the engine's own authority - StateGame builds GameServer only when its is_server flag is set,
+--     so either one is exactly "this board answers server RPCs" (the .clinerules convention);
+--   * AddUtility's _G.is_host_ducks_mods, which is fed from lobby:lobby_host().
+-- AddUtility's flag must never be the only gate: it is refreshed only while a network lobby exists
+-- and leave_lobby() nils both lobby fields, so after the lobby closes it freezes and can read false
+-- on the real host - dropping the authority path exactly when the duplicate revive needs it.
+-- Erring towards "host" is safe here: every hook this gates lives on GameServer, which a client
+-- never instantiates, so a stale true on a client cannot run anything.
+Doppelgangers.is_host = function()
+    local state_game = _G.FlowCallbacks and FlowCallbacks.state_game
+
+    if state_game and (state_game.is_server == true or state_game.game_server ~= nil) then
+        return true
+    end
+
+    return _G.is_host_ducks_mods == true
+end
+
 -- print("[" .. MOD_NAME .. "] Making a few doubles, doubles, doubles, doubles...")

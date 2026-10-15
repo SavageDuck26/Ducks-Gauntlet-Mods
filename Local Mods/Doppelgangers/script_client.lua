@@ -15,6 +15,17 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         Mods.hook:set_object_path("GameClient", "set_available_heroes", function(orig, self, available_heroes, ...)
             return orig(self, AvatarSettings.avatars, ...)
         end, MOD_NAME .. ".GameClient.set_available_heroes", MOD_NAME)
+
+        -- A denied revive still has to clear the client's request flag so it can retry, but the
+        -- engine dereferences player_info without a guard. A denial can name a player this board no
+        -- longer knows (the request may predate a switch/revive re-creating the player), so guard it.
+        Mods.hook:set_object_path("GameClient", "from_server_revive_request_denied", function(orig, self, sender, player_go_id)
+            local player_info = PlayerManager:get_player_info(player_go_id)
+
+            if player_info then
+                player_info.revive_request_sent = false
+            end
+        end, MOD_NAME .. ".GameClient.from_server_revive_request_denied", MOD_NAME)
     end
 
     -- The kill-streak banner subscribes to on_stat_event and matches by avatar_type, which both
