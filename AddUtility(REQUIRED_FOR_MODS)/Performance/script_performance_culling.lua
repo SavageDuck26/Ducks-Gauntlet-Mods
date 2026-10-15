@@ -43,6 +43,8 @@ local scan_unculled = 0
 local scan_candidates = nil
 local cull_queue = nil
 local cull_cursor = 1
+local cull_skip = {}
+local scan_skip = {}
 local last_unculled = MAX_MONSTERS
 
 local function furthest_first(a, b)
@@ -56,6 +58,8 @@ local function reset_cull_state()
     scan_candidates = nil
     cull_queue = nil
     cull_cursor = 1
+    cull_skip = {}
+    scan_skip = {}
     last_unculled = MAX_MONSTERS
 end
 
@@ -79,8 +83,21 @@ local function cull_distant_sliced(self)
         for i = cull_cursor, last_cull do
             local unit = cull_queue[i]
 
-            if self._monsters[unit] then
-                EntityCullingManager:cull_unit(unit)
+            if self._monsters[unit] and not cull_skip[unit] then
+                -- cull_unit indexes the unit's culled data without checking it
+                -- exists, so a unit the manager has no record for takes the
+                -- client down inside AIManager.update.  The risen mummy is one.
+                -- Skip such a unit for good rather than retrying every pass, and
+                -- say so once if the loader offers a log.
+                local cull_ok, cull_err = pcall(EntityCullingManager.cull_unit,
+                    EntityCullingManager, unit)
+                if not cull_ok then
+                    cull_skip[unit] = true
+                    if type(Mods) == "table" and type(Mods.log) == "function" then
+                        Mods.log("[PerformanceCulling] skipped uncullable unit: "
+                            .. tostring(cull_err))
+                    end
+                end
             end
         end
 
@@ -114,15 +131,34 @@ local function cull_distant_sliced(self)
     for i = scan_cursor, last_scan do
         local unit = scan_units[i]
 
-        -- Units despawn mid-pass, so self._monsters is the live set.
-        if self._monsters[unit] and not EntityCullingManager:is_culled(unit) then
-            scan_unculled = scan_unculled + 1
+        -- Units despawn mid-pass, so self._monsters is the live set - but on a
+        -- level transition it can still hold handles from the floor being left,
+        -- and reading one crashes the client.  Anything that fails here is
+        -- dropped for the rest of the pass.
+        if self._monsters[unit] and not scan_skip[unit] then
+            local scan_ok, culled_or_dist = pcall(function()
+                if EntityCullingManager:is_culled(unit) then
+                    return true
+                end
 
-            local pos = Unit.world_position(unit, 0)
-            local _, dist = CameraManager:is_position_inside_frustum(pos)
+                local pos = Unit.world_position(unit, 0)
+                local _, dist = CameraManager:is_position_inside_frustum(pos)
 
-            if dist > CULL_DIST then
-                scan_candidates[#scan_candidates + 1] = { dist = dist, unit = unit }
+                return dist
+            end)
+
+            if not scan_ok then
+                scan_skip[unit] = true
+                if type(Mods) == "table" and type(Mods.log) == "function" then
+                    Mods.log("[PerformanceCulling] dropped stale unit from scan: "
+                        .. tostring(culled_or_dist))
+                end
+            elseif culled_or_dist ~= true then
+                scan_unculled = scan_unculled + 1
+                if culled_or_dist > CULL_DIST then
+                    scan_candidates[#scan_candidates + 1] =
+                        { dist = culled_or_dist, unit = unit }
+                end
             end
         end
     end
@@ -194,6 +230,8 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
             local floor_id = self.state_game:get_floor_id()
 
             if floor_id ~= cached_floor_id then
+                -- a new floor: nothing from the last one is still valid
+                reset_cull_state()
                 cached_floor_id = floor_id
                 cached_should = orig_should(self, ...)
             end
