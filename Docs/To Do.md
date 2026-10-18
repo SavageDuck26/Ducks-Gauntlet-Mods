@@ -14,5 +14,8 @@
 ## Mod Suggestions (by priority):
 - Culling system fix for Knossos and Alliances, too many bosses/lag. (Partly implemented, needs testing and maybe updates.)
 - Increase Eye Boss threat range.
-- When a player dies, revive them as Lazy ,for the next floor only.
+- When a player dies, revive them as Lazy, for the next floor only.
 - Players able to swap in game between all 3 potion abilities.
+
+## Outside Modding: 
+- Custom levels: Caves level that spirals downwards to unlock a massive elevator in the middle that brings to surface where a boss is?
