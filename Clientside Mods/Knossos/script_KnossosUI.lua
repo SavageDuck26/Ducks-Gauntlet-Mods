@@ -17,6 +17,7 @@ Knossos.CONFIG = Knossos.CONFIG or {}
 Knossos.CONFIG.enabled = (Knossos.CONFIG.enabled == nil) and true or Knossos.CONFIG.enabled
 Knossos.CONFIG.mode = Knossos.CONFIG.mode or "Small"
 Knossos.CONFIG.interconnect_enabled = (Knossos.CONFIG.interconnect_enabled == nil) and true or Knossos.CONFIG.interconnect_enabled
+Knossos.CONFIG.extra_rooms_enabled = (Knossos.CONFIG.extra_rooms_enabled == nil) and true or Knossos.CONFIG.extra_rooms_enabled
 
 local KNOSSOS_SETTINGS = {
     modes = {"Small", "Medium", "Large", "Massive", "Labyrinth"},
@@ -139,6 +140,16 @@ function toggle_knossos_interconnect()
     end
 end
 
+function toggle_knossos_extra_rooms()
+    Knossos.CONFIG.extra_rooms_enabled = not Knossos.CONFIG.extra_rooms_enabled
+    if current_overlay_widget then
+        local checkbox_widget = current_overlay_widget:get("knossos_extra_rooms_checkbox")
+        if checkbox_widget then
+            checkbox_widget:set_checked(Knossos.CONFIG.extra_rooms_enabled)
+        end
+    end
+end
+
 local function create_knossos_config_overlay_ui()
     return {
         css = "gui/default_css",
@@ -203,6 +214,19 @@ local function create_knossos_config_overlay_ui()
                                 on = {
                                     clicked = function()
                                         toggle_knossos_interconnect()
+                                    end
+                                }
+                            },
+                            {
+                                checked = Knossos.CONFIG.extra_rooms_enabled,
+                                id = "knossos_extra_rooms_checkbox",
+                                type = "checkbox",
+                                text = "Extra Rooms",
+                                size = {170, 40},
+                                font_size = 20,
+                                on = {
+                                    clicked = function()
+                                        toggle_knossos_extra_rooms()
                                     end
                                 }
                             }

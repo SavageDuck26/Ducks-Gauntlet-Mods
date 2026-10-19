@@ -12,6 +12,8 @@ local TARGET_UNITS = {
     ["characters/cultist_novice/cultist_novice"] = true,
 }
 
+local KNOSSOS_KEYDROP_CHANCE = 0.03
+
 local function spawn_dropped_key(position)
     if not position then
         return
@@ -61,7 +63,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         end
 
         if owned_by_this_peer then
-            if math.random() < 0.97 then
+            if math.random() > KNOSSOS_KEYDROP_CHANCE then
                 return
             end
             spawn_dropped_key(death_position)

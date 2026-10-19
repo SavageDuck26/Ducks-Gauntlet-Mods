@@ -4,8 +4,68 @@ local MOD_VERSION = "1.5.0"
 local MOD_DESCRIPTION = "Clean custom Quilt Builder override that branches and interconnects branches"
 
 local MOD_NAME, log_message = Mods.init_mod()
-Knossos = Knossos or {}
+
+-- log_message from the loader goes somewhere mods cannot read - there is no console
+-- in this install, which is why none of the extra-quilt lines ever appeared in any
+-- log file.  Mirror everything to a file beside the other mods' logs, using the same
+-- convention _preload/duck_debug.lua does.
+-- Set inside the block below; the current-floor file is rewritten every floor.
+local CURRENT_FLOOR_PATH
+
+do
+    -- rawget, not a bare read: under strict.lua a global that does not exist is an
+    -- error rather than a nil, so guarding with `Mods and ...` is not enough.
+    local mods = rawget(_G, "Mods")
+    local root = (mods and mods.mod_directory)
+        or rawget(_G, "DLL_MOD_DIRECTORY_PATH") or "."
+    -- Straight into the mods root: io.open will not create a directory, so a missing
+    -- one fails silently, and there is no <mods>/logs/ in this install.
+    local path = root .. "/knossos_extra_quilts.txt"
+    -- One file, overwritten per floor: the floor you are standing on now, not a history.
+    CURRENT_FLOOR_PATH = root .. "/knossos_current_floor.txt"
+    local loader_log = log_message
+
+    log_message = function(msg)
+        pcall(loader_log, msg)
+        pcall(function()
+            local f = io.open(path, "a")
+            if f then
+                f:write(tostring(msg) .. "\n")
+                f:close()
+            end
+        end)
+    end
+end
+
+-- Declared before anything reads it, and with rawget rather than a bare read: under
+-- strict.lua reading a global before its first assignment is an error, not a nil.  The
+-- marker below used to sit above this line and only worked because the UI script
+-- happened to load first - rename or disable that script and it was a load-time crash
+-- on `attempt to index nil`.
+Knossos = rawget(_G, "Knossos") or {}
 Knossos.loaded = true
+
+-- Rewrite the current-floor file.  "w" truncates, so this is always the floor you are on
+-- and never accumulates.  io.open will not create a directory, so the path is the mods
+-- root, same as the extra-quilt log.
+Knossos.write_current_floor = function (text)
+    if CURRENT_FLOOR_PATH == nil then
+        return
+    end
+
+    pcall(function ()
+        local f = io.open(CURRENT_FLOOR_PATH, "w")
+        if f then
+            f:write(text)
+            f:close()
+        end
+    end)
+end
+
+-- Load-time marker: proves which copy of this file the game actually required.
+log_message(string.format("[Knossos] quilt builder loaded - extra rooms %s, log at %s",
+    tostring(Knossos.CONFIG and Knossos.CONFIG.extra_rooms_enabled),
+    "knossos_extra_quilts.txt"))
 
 Knossos.CONFIG = Knossos.CONFIG or {}
 Knossos.CONFIG.enabled = (Knossos.CONFIG.enabled == nil) and true or Knossos.CONFIG.enabled
@@ -349,6 +409,24 @@ function Knossos.branch_quilt_builder()
         return list
     end
 
+    -- The engine places each block at DungeonAux.position_from_coordinate(x, y, 0), which
+    -- scales by DungeonAux.METERS_PER_CELL.  Read it from the engine instead of hardcoding:
+    -- the quilt's block metres are half the world's metres, which is why lookups against the
+    -- raw block rects landed on the wrong room or on filler.
+    local function meters_per_cell()
+        local aux = rawget(_G, "DungeonAux")
+
+        if aux ~= nil and type(aux.position_from_coordinate) == "function" then
+            local probe = aux.position_from_coordinate(1, 0, 0)
+
+            if probe ~= nil and type(probe.x) == "number" and probe.x ~= 0 then
+                return probe.x
+            end
+        end
+
+        return 2
+    end
+
     local function is_walkable(s)
         quilt_ensure(type(s) == "string" and #s == 1)
 
@@ -467,11 +545,306 @@ function Knossos.branch_quilt_builder()
         self.exit_tile_set = {}
         self.saferoom_tile_set = {}
 
+        -- ── Extra Rooms ──────────────────────────────────────────────────────
+        -- Pieces the game ships but no layout names.  Which table to read and which
+        -- theme to take is derived from THIS layout: its section paths name the
+        -- environment, its piece names carry the theme.  Merged into layout_node
+        -- before parse_tiles runs, so it applies the layout's own path/defaults
+        -- handling and nothing is bolted on beside it.
+        if Knossos.CONFIG.extra_rooms_enabled ~= false then
+            local function extra_env()
+                for _, section in ipairs({ layout_node.fillers, layout_node.encounters,
+                                           layout_node.entrances, layout_node.exits,
+                                           layout_node.saferooms }) do
+                    local env = type(section) == "table" and type(section.path) == "string"
+                        and section.path:match("^modules/d01_(%a+)")
+                    if env then return string.upper(env) end
+                end
+            end
+
+            local function extra_theme()
+                local counts, best, best_n = {}, nil, 0
+                for _, section in ipairs({ layout_node.fillers, layout_node.encounters,
+                                           layout_node.entrances, layout_node.exits,
+                                           layout_node.saferooms }) do
+                    if type(section) == "table" then
+                        for name in pairs(section) do
+                            if type(name) == "string" and name:find("_quilt_", 1, true) then
+                                local tail = name:match("__(%d+)_(%a.+)$")
+                                local word = tail and tail:match("^%a+")
+                                if word then counts[word] = (counts[word] or 0) + 1 end
+                            end
+                        end
+                    end
+                end
+                for word, n in pairs(counts) do
+                    if n > best_n then best, best_n = word, n end
+                end
+                return best
+            end
+
+            local ok, why = pcall(function()
+                local env = extra_env()
+                if not env then
+                    log_message("extra quilts: cannot tell the environment from this layout")
+                    return
+                end
+                local env_table = _G["KNOSSOS_EXTRA_QUILTS_" .. env]
+                if type(env_table) ~= "table" then
+                    log_message("extra quilts: no _G.KNOSSOS_EXTRA_QUILTS_" .. env .. " table")
+                    return
+                end
+
+                -- The theme this list of pieces carries, read off the piece names.
+                local function theme_of(node)
+                    if type(node) ~= "table" then return nil end
+                    local counts, best, best_n = {}, nil, 0
+                    for name in pairs(node) do
+                        if type(name) == "string" and name:find("_quilt_", 1, true) then
+                            local tail = name:match("__(%d+)_(%a.+)$")
+                            local word = tail and tail:match("^%a+")
+                            if word then counts[word] = (counts[word] or 0) + 1 end
+                        end
+                    end
+                    for word, n in pairs(counts) do
+                        if n > best_n then best, best_n = word, n end
+                    end
+                    return best
+                end
+
+                -- One supply for everything in a list we touch.  Inheriting the
+                -- section default leaves the new pieces competing against lists that
+                -- already hold dozens, which is why they were barely showing.
+                local supply = tonumber(Knossos.CONFIG.extra_rooms_supply) or 30
+                local normalize = Knossos.CONFIG.extra_rooms_normalize ~= false
+
+                local floor_theme = theme_of(layout_node.fillers)
+                    or theme_of(layout_node.encounters) or "plain"
+                local added, flattened = 0, 0
+
+                for _, spec in ipairs({
+                    { node = layout_node.fillers,    key = "fillers" },
+                    { node = layout_node.encounters, key = "encounters" },
+                    { node = layout_node.entrances,  key = "entrances" },
+                    { node = layout_node.exits,      key = "exits" },
+                    { node = layout_node.saferooms,  key = "saferooms" },
+                }) do
+                    -- A layout whose entrance is bespoke keeps it.  The endless start
+                    -- floors carry a teleporter entrance (`_start`), and injecting
+                    -- extra candidates or flattening supplies would turn that into one
+                    -- option in sixteen - so those sections are left exactly as they
+                    -- shipped.
+                    --
+                    -- Two levels deep: a section holds `path`, `defaults` and its
+                    -- groups, and the piece names live inside those groups.  Checking
+                    -- only the section's own keys never sees a piece name at all.
+                    local function has_bespoke_entrance(node)
+                        for _, group in pairs(node) do
+                            if type(group) == "table" then
+                                for pname in pairs(group) do
+                                    if type(pname) == "string"
+                                       and pname:find("_start", 1, true) then
+                                        return true
+                                    end
+                                end
+                            end
+                        end
+                        return false
+                    end
+
+                    local target = spec.node
+                    if type(target) == "table"
+                       and not (spec.key == "entrances" and has_bespoke_entrance(target)) then
+                        -- the section's own theme first: hallways can be plain while
+                        -- the rooms are themed, and one theme for the layout loses
+                        -- whichever does not match
+                        local theme = theme_of(target) or floor_theme
+                        -- the data is keyed by bucket; the floor's theme word says
+                        -- which one, via the map the generator wrote alongside it
+                        local bmap = _G["KNOSSOS_EXTRA_QUILTS_" .. env .. "_BUCKET_OF"]
+                        local bucket = (type(bmap) == "table" and bmap[theme]) or theme
+                        local lists = env_table[bucket]
+                        if type(lists) ~= "table" then
+                            -- The floor gave no theme that maps to a bucket - its pieces
+                            -- carry no variant word, so the derived theme is the
+                            -- placeholder `plain`, which is not a bucket name.  Take
+                            -- this environment's first bucket (sorted, so it is stable)
+                            -- rather than injecting nothing at all.
+                            local names = {}
+                            for bname in pairs(env_table) do
+                                names[#names + 1] = bname
+                            end
+                            table.sort(names)
+                            if names[1] ~= nil and type(env_table[names[1]]) == "table" then
+                                log_message(string.format(
+                                    "extra quilts: %s theme=%s is not a bucket, using '%s'",
+                                    spec.key, tostring(theme), names[1]))
+                                bucket, lists = names[1], env_table[names[1]]
+                            end
+                        end
+                        local here = 0
+
+                        if type(lists) == "table" and type(lists[spec.key]) == "table" then
+                            for group, pieces in pairs(lists[spec.key]) do
+                                if type(target[group]) ~= "table" then
+                                    target[group] = {}
+                                end
+                                for _, full in ipairs(pieces) do
+                                    local bare = full:match("([^/]+)$")
+                                    target[group][bare] = { supply = supply }
+                                    added = added + 1
+                                    here = here + 1
+                                    -- named one by one: "is my piece being offered at
+                                    -- all?" is the first question, and only a per-piece
+                                    -- line answers it
+                                    -- Blackboxes are bulk filler: one line each buries the
+                                    -- rest of the floor in the log for no diagnostic value.
+                                    -- They are still counted in the per-section totals below.
+                                    if not bare:match("blackbox") then
+                                        log_message(string.format(
+                                            "extra quilt: %s %s %s", spec.key, group, bare))
+                                    end
+                                end
+                            end
+                        end
+
+                        if normalize then
+                            target.defaults = type(target.defaults) == "table" and target.defaults or {}
+                            target.defaults.supply = supply
+                            for gname, group in pairs(target) do
+                                -- roof_filler is NOT decoration to be balanced: the
+                                -- shipped layouts give its blackboxes math.huge so the
+                                -- gaps between rooms always get filled.  Flattening it
+                                -- to a normal supply leaves those gaps empty.
+                                if type(group) == "table" and gname ~= "defaults"
+                                   and gname ~= "roof_filler" then
+                                    for pname, meta in pairs(group) do
+                                        if type(pname) == "string"
+                                           and pname:find("_quilt_", 1, true) then
+                                            -- preserve any explicit infinite supply too
+                                            local keep = type(meta) == "table"
+                                                and meta.supply or nil
+                                            if keep ~= math.huge then
+                                                group[pname] = { supply = supply }
+                                                flattened = flattened + 1
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+
+                        if here > 0 then
+                            log_message(string.format(
+                                "extra quilts: %s theme=%s added=%d", spec.key, theme, here))
+                        else
+                            log_message(string.format(
+                                "extra quilts: %s theme=%s has no '%s' list",
+                                spec.key, theme, spec.key))
+                        end
+                    end
+                end
+
+                log_message(string.format(
+                    "extra quilts: env=%s floor_theme=%s added=%d supply=%g normalized=%d",
+                    env, floor_theme, added, supply, flattened))
+            end)
+            if not ok then
+                log_message("extra quilts: FAILED - " .. tostring(why))
+            end
+        end
+
         self:parse_tiles(layout_node.fillers, self.filler_tile_set, "filler")
         self:parse_tiles(layout_node.encounters, self.encounter_tile_set, "encounter")
         self:parse_tiles(layout_node.entrances, self.entrance_tile_set, "entrance")
         self:parse_tiles(layout_node.exits, self.exit_tile_set, "exit")
         self:parse_tiles(layout_node.saferooms, self.encounter_tile_set, "saferoom")
+
+        -- Exposed for other mods: which quilt piece covers a world position.  A tile is
+        -- 10 units and the quilt is centred on the origin, so world/10 lands on a quilt
+        -- cell.  If a name ever looks wrong, that assumption is the thing to check - and
+        -- the nearest block is returned as a fallback so a lookup off by a cell still
+        -- names something close rather than nothing.
+        -- Guarded read: the file's global exists by now, but capturing it in a local keeps
+        -- the closure off the global table entirely.
+        local knossos = Knossos
+        if knossos ~= nil then
+            knossos.last_builder = self
+            if knossos.room_at == nil then
+                -- (x, y): the quilt lies in the world's x/y plane.  Confirmed from the
+                -- engine, not inferred: DungeonAux.position_from_coordinate(x, y, 0) returns
+                -- (x * METERS_PER_CELL, y * METERS_PER_CELL, 0), so z is the level's height
+                -- and y is a ground axis.  An F6 readout inside a room agrees - z = 0.03,
+                -- y = -118.72.
+                --
+                -- Searches EVERY quilt registered for this floor, not just the last one
+                -- built.  The engine builds one quilt per cluster - generate_layout_graph is
+                -- called per cluster, each constructing its own QuiltBuilder - so keeping a
+                -- single builder only ever described one cluster, which is why a position in
+                -- the entrance cluster came back "not a Knossos floor".
+                knossos.room_at = function (x, y)
+                    local quilts = knossos.quilts
+
+                    if quilts == nil or #quilts == 0 then
+                        return nil
+                    end
+
+                    local mpc = meters_per_cell()
+                    x, y = tonumber(x) or 0, tonumber(y) or 0
+
+                    local best, best_d = nil, math.huge
+                    local filler, filler_d = nil, math.huge
+
+                    -- Newest cluster first: the floor being walked is the one just built.
+                    for qi = #quilts, 1, -1 do
+                        for _, block in ipairs(quilts[qi].blocks or {}) do
+                            local named = block.tile and block.tile.name or nil
+
+                            -- Block coords are quilt metres with the cluster origin already
+                            -- folded in (spawn_block adds cluster_x); the world multiplies
+                            -- that by METERS_PER_CELL.
+                            local bx = (tonumber(block.x) or 0) * mpc
+                            local by = (tonumber(block.y) or 0) * mpc
+                            local bw = (tonumber(block.w) or 0) * mpc
+                            local bh = (tonumber(block.h) or 0) * mpc
+                            local is_filler = named ~= nil
+                                and (named:match("blackbox") ~= nil or named:match("roof") ~= nil)
+                            local contains = x >= bx and x < bx + bw and y >= by and y < by + bh
+                            local dx = math.max(bx - x, x - (bx + bw), 0)
+                            local dy = math.max(by - y, y - (by + bh), 0)
+                            local d = dx * dx + dy * dy
+
+                            if contains and not is_filler then
+                                return named or "unnamed block"
+                            end
+
+                            if is_filler then
+                                if named ~= nil and d < filler_d then
+                                    filler, filler_d = named, d
+                                end
+                            elseif named ~= nil and d < best_d then
+                                best, best_d = named, d
+                            end
+                        end
+                    end
+
+                    -- Near enough to claim: two cells, in world metres.
+                    local cap = (16 * mpc) * (16 * mpc)
+
+                    if best ~= nil and best_d <= cap then
+                        return best
+                    end
+
+                    -- Filler only speaks for a cell it CONTAINS.  Naming a distant filler is
+                    -- what produced "blackbox" for positions the quilt never covered.
+                    if filler_d == 0 then
+                        return filler
+                    end
+
+                    return nil
+                end
+            end
+        end
 
         -- Merge branch defaults with mode-specific settings and any layout_node overrides
         self.branch_config = {}
@@ -572,12 +945,132 @@ function Knossos.branch_quilt_builder()
         self.quilt = quilt
         self.grid = {}
         self.blocks = quilt.blocks
+        -- Per floor, not per instance: a reused builder must not carry a finished
+        -- floor's exits into the interconnect's single-connection guard.
+        self.exit_block_set = {}
+        self.exit_doorways = {}
 
 
         self:build_quilt(cluster, cluster_x, cluster_y)
+
+        -- Re-assert the exit doorways placement opened, once every later pass has had its
+        -- chance to seal one.  Only the recorded sides are touched, so unlike a full sweep
+        -- this cannot hand an exit extra doorways.
+        self:reconcile_exit_doors()
+
         center_quilt(quilt)
 
+        -- Register this cluster's quilt.  The engine builds one quilt per cluster, so a
+        -- single "last builder" only ever described one of them - which is why a position in
+        -- the entrance cluster answered "not a Knossos floor".
+        Knossos.quilts = Knossos.quilts or {}
+
+        -- A cluster built twice means a new floor: clear, so a stale cluster can never answer
+        -- for the current one.
+        for i = #Knossos.quilts, 1, -1 do
+            if Knossos.quilts[i].name == tostring(cluster.name) then
+                Knossos.quilts = {}
+                break
+            end
+        end
+
+        table.insert(Knossos.quilts, {
+            blocks = self.blocks,
+            name = tostring(cluster.name),
+        })
+
+        -- After centring, so the logged cells match what the world sees.
+        self:write_current_floor_log()
+
         return quilt
+    end
+
+    -- One line per placed block, so "which room is furthest top-left" is a read of the log
+    -- rather than a rebuild.  Written after centring, so the grid cells line up with what
+    -- the world sees, and both the cells and the world metres are included so the F6
+    -- position readout can be cross-referenced against it.  Sorted left-most first, then
+    -- up, so the first line is the answer.
+    QuiltBuilder.write_current_floor_log = function (self)
+        if Knossos == nil or Knossos.write_current_floor == nil then
+            return
+        end
+
+        local quilts = Knossos.quilts or {}
+        local mpc = meters_per_cell()
+        local lines = {}
+        local filler, listed = 0, 0
+
+        -- The sides a block can actually be entered from, read from its live materials - the
+        -- u/r/d/l arrays the door code writes.  This is the kind of fact a piece should be
+        -- retired on: "one connection, on the left" reads as open=l(1), instead of being
+        -- inferred from the name signature.
+        local function open_sides_of(block)
+            local open = {}
+
+            for _, dir in ipairs({ "u", "r", "d", "l" }) do
+                local side = block[dir]
+
+                if type(side) == "table" then
+                    for i = 1, #side do
+                        if is_walkable(side[i]) then
+                            open[#open + 1] = dir
+                            break
+                        end
+                    end
+                end
+            end
+
+            return table.concat(open, "") .. "(" .. tostring(#open) .. ")"
+        end
+
+        -- Every cluster, because a floor is several of them: this is the whole level, not the
+        -- last quilt built.  World coordinates are scaled the way the engine places levels
+        -- (DungeonAux.position_from_coordinate), so an F6 readout matches them directly.
+        for qi = 1, #quilts do
+            local q = quilts[qi]
+            local rows = {}
+
+            for _, b in ipairs(q.blocks or {}) do
+                local name = tostring(b.name)
+
+                -- Blackbox filler is most of a floor and names nothing useful.  Counted, not
+                -- listed.
+                if name:match("blackbox") or name:match("roof") then
+                    filler = filler + 1
+                else
+                    rows[#rows + 1] = b
+                end
+            end
+
+            -- Left-most first, then furthest up within that.  table.sort is not stable, so
+            -- the x comparison is what guarantees the first line is the extreme one.
+            table.sort(rows, function (a, b)
+                if a.qx ~= b.qx then
+                    return a.qx < b.qx
+                end
+
+                return a.qy < b.qy
+            end)
+
+            lines[#lines + 1] = string.format("## cluster %s - %d room(s) (sorted qx, then qy)",
+                tostring(q.name), #rows)
+
+            for i = 1, #rows do
+                local b = rows[i]
+                listed = listed + 1
+
+                lines[#lines + 1] = string.format(
+                    "qx=%-4d qy=%-4d w=%-3d h=%-3d  world=(%.1f, %.1f)  open=%-8s %s",
+                    b.qx or 0, b.qy or 0, b.qw or 0, b.qh or 0,
+                    (b.x or 0) * mpc, (b.y or 0) * mpc, open_sides_of(b), tostring(b.name))
+            end
+        end
+
+        table.insert(lines, 1, string.format(
+            "# current floor: %d cluster(s), %d room(s) listed, %d filler omitted, world scale %.0f m per quilt metre",
+            #quilts, listed, filler, mpc))
+
+        Knossos.write_current_floor(table.concat(lines, "\n") .. "\n")
     end
 
     QuiltBuilder.build_quilt = function (self, cluster, cluster_x, cluster_y)
@@ -751,6 +1244,64 @@ function Knossos.branch_quilt_builder()
             end
             return false
         end
+
+        -- Open every side of the exit that faces a neighbour.
+        --
+        -- The exit is placed where an encounter block was removed, so its neighbours
+        -- are already in the quilt.  Nothing would ever open those sides: open_door
+        -- only records a connection to a cell that is still EMPTY, and these are
+        -- occupied, so an exit with several approaches was left with one door open,
+        -- or none.  Sealing the other sides is the restore paths' job; opening the
+        -- connected ones is this path's.
+        --
+        -- A side has TWO halves: the block's own tile data and the grid cell's
+        -- material.  open_door early-returns when the block's half is already
+        -- walkable, and that return skips the grid half - which is why a doorway here
+        -- could have its door mesh removed and still be walled off in game, the level
+        -- welding walls from the grid.  Both halves, or the passage stays blocked.
+        local function open_side(block, dir, dir_index, bx, by, mirror)
+            self:open_doorway(block, dir, dir_index, bx, by, mirror)
+        end
+
+        for dir, bx, by, material, material_type, dir_index in
+            block_border_iter(exit_block.qx, exit_block.qy, exit_block) do
+            local dx, dy = dir_offset(dir)
+            local across = self.grid[xy_to_id(bx + dx, by + dy)]
+            if across then
+                open_side(exit_block, dir, dir_index, bx, by)
+
+                -- A doorway has two sides and the door MESH belongs to whichever
+                -- block's object_sets carry the closed marker - often the neighbour,
+                -- which is why removing it from the exit alone left the door drawn.
+                -- Found by coordinates rather than by index: the neighbour's border
+                -- cell is the one across from ours, whose own outward step comes back
+                -- to ours.  Indices may be mirrored between the two sides; positions
+                -- are not.
+                local nb = across.block
+                if nb ~= nil and nb ~= exit_block then
+                    for ndir, nbx, nby, nmaterial, ntype, nindex in
+                        block_border_iter(nb.qx, nb.qy, nb) do
+                        local ndx, ndy = dir_offset(ndir)
+                        if nbx == bx + dx and nby == by + dy
+                           and nbx + ndx == bx and nby + ndy == by then
+                            -- The exit's side of this doorway is what the neighbour's side
+                            -- has to become, so both halves agree and the opening welds.
+                            -- Read the exit's LIVE material, not its tile: an earlier pass
+                            -- may already have adjusted that side, and the blueprint value
+                            -- would put the mismatch straight back.
+                            local far = exit_block[dir][dir_index] or exit_block.tile[dir][dir_index]
+                            open_side(nb, ndir, nindex, nbx, nby, far)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Remember it: the interconnect must keep its corridors off it, since an exit is
+        -- only allowed the one connection it was placed with.
+        self.exit_block_set = self.exit_block_set or {}
+        self.exit_block_set[exit_block] = true
 
         -- Remove the endpoint from tracking since it's now an exit
         for i = #self.branch_endpoints, 1, -1 do
@@ -1678,7 +2229,9 @@ function Knossos.branch_quilt_builder()
 
         for _, block in ipairs(self.blocks) do
             if block ~= source_block and not source_block.neighbor_blocks[block] then
-                if block.is_special or allow_filler then
+                -- Exits take a single connection only: bridging a corridor into one would
+                -- hand it a second doorway, which is the mismatch an exit cannot resolve.
+                if (block.is_special or allow_filler) and not self.exit_block_set[block] then
                     local dist = self:block_gap_distance(source_block, block)
 
                     if dist >= min_dist and dist <= max_dist then
@@ -1734,6 +2287,119 @@ function Knossos.branch_quilt_builder()
     end
 
     -- Update the cardinalN_open / cardinalN_closed object sets for a door
+    -- Open both halves of one doorway.
+    --
+    -- A side lives in two places: the block's own tile data and the grid cell's
+    -- material.  open_door early-returns when the block's half is already walkable, and
+    -- that return skips the grid half AND the door marker.  The level welds walls from
+    -- the grid, so a doorway whose mesh was removed can still be walled off in game -
+    -- the blocking-exit symptom.  Both halves, every time.
+    QuiltBuilder.open_doorway = function (self, block, dir, dir_index, bx, by, mirror)
+        -- A doorway has to end up open AND agreeing on BOTH halves.
+        --
+        -- Materials are per-block, so a sand piece meeting a bricks one leaves the two
+        -- halves walkable but DIFFERENT, and an opening whose halves disagree does not
+        -- weld - which is why a two-connection exit could open one side and not the other
+        -- depending on which pieces happened to meet, and why it looked like a race.
+        -- When a mirror is supplied (the far side's material) it wins, so both halves end
+        -- up identical and the side the exit was approached from no longer matters.
+        --
+        -- want is nil when neither half is walkable: nothing is touched then, not even the
+        -- door marker, so a deliberately sealed side keeps its door mesh rather than
+        -- turning into an invisible block.
+        local own = block[dir][dir_index] or block.tile[dir][dir_index]
+        local want
+        if mirror ~= nil and is_walkable(mirror) then
+            want = mirror
+        elseif is_walkable(own) then
+            want = own
+        end
+
+        self:open_door(block, dir, dir_index, bx, by)
+
+        if want == nil then
+            return
+        end
+
+        -- Match, don't just open: a differing material is the mismatch that blocks the side.
+        if block[dir][dir_index] ~= want then
+            block[dir][dir_index] = want
+        end
+
+        self:set_door_marker(block, dir, dir_index, true)
+
+        local cell = self.grid[xy_to_id(bx, by)]
+
+        -- And the grid half, which open_door's early return skips.  Same rule: make the
+        -- cell agree with the doorway rather than only filling in a closed one.
+        if cell and cell[dir] and cell[dir].material ~= want then
+            cell[dir].material = want
+        end
+
+        -- Record it so the build's last pass can re-assert it.  Passes that run after an
+        -- exit is placed - branch dead-ends, and interconnection, which runs after
+        -- placement by design - can shut an opening the exit needs.  Only the sides
+        -- recorded here are re-opened, which is what keeps this from minting extra
+        -- doorways the way enumerating every neighbour-facing side did.  want is kept too:
+        -- if a later pass turned the side back into a wall, the recorded material is what
+        -- restores it, since the live value alone would no longer be walkable.
+        -- Skipped while reconciling, which calls back into here.
+        if not self.reconciling then
+            self.exit_doorways = self.exit_doorways or {}
+            table.insert(self.exit_doorways, {
+                block = block, dir = dir, index = dir_index,
+                bx = bx, by = by, want = want,
+            })
+        end
+
+        log_message(string.format(
+            "[Knossos] doorway opened: %s %s %d at %d,%d own=%s want=%s",
+            tostring(block.name), tostring(dir), dir_index, bx, by,
+            tostring(own), tostring(want)))
+    end
+
+    -- The same doorway seen from the neighbour: its border cell is the one across from
+    -- ours, whose own outward step comes back to ours.  Indices may be mirrored between
+    -- the two blocks, positions are not, so this is found by coordinates.
+    QuiltBuilder.opposite_doorway = function (self, nb, bx, by, dx, dy)
+        for ndir, nbx, nby, nmaterial, ntype, nindex in
+            block_border_iter(nb.qx, nb.qy, nb) do
+            local ndx, ndy = dir_offset(ndir)
+
+            if nbx == bx + dx and nby == by + dy
+               and nbx + ndx == bx and nby + ndy == by then
+                return ndir, nindex, nbx, nby
+            end
+        end
+    end
+
+    -- Re-assert, at the end of the build, exactly the doorways placement opened.
+    --
+    -- Passes that run after an exit is placed can shut an opening it needs: branch
+    -- dead-ends call seal_block_exits, which seals every non-entrance side whether or not
+    -- a neighbour is behind it, and interconnection runs after placement by design.  A
+    -- sealed exit is a floor that cannot be finished, so these are re-opened once
+    -- everything else has finished.
+    --
+    -- Deliberately NOT a sweep of every neighbour-facing side: that was tried and it
+    -- closed working crypt exits, because open_door on an is_special block registers a
+    -- doorway, so opening sides the builder had sealed on purpose handed the exit extra
+    -- doorways and the level resolved to the wrong one.  Re-opening the same sides cannot
+    -- do that - open_door early-returns when the side is already open, so no new doorway
+    -- is created - and the recorded material restores a side that was walled off again.
+    QuiltBuilder.reconcile_exit_doors = function (self)
+        -- Snapshot the count and suppress recording for the duration: open_doorway records
+        -- into exit_doorways, so without both of these the loop would append to the table
+        -- it is iterating and never terminate.
+        self.reconciling = true
+        local recorded = self.exit_doorways
+        for i = 1, #(recorded or {}) do
+            local d = recorded[i]
+            self:open_doorway(d.block, d.dir, d.index, d.bx, d.by, d.want)
+        end
+        self.reconciling = nil
+    end
+
     QuiltBuilder.set_door_marker = function (self, block, dir, dir_index, is_open)
         if not block.object_sets then
             return
@@ -1894,6 +2560,31 @@ function Knossos.branch_quilt_builder()
         return nil
     end
 
+    -- An exit holds exactly the one connection it was placed with.  A connector tile that ends
+    -- up opening into it welds a second doorway on: try_find_tile matches the exit's border
+    -- material, so the joining side comes out walkable, and the level can then resolve the exit
+    -- to the wrong doorway.  Only a real passage counts - a tile flush against a walled exit
+    -- side is harmless - and connectors are culled rather than repaired afterwards.
+    QuiltBuilder.block_joins_exit = function (self, block)
+        for dir, bx, by, material in block_border_iter(block.qx, block.qy, block) do
+            if is_walkable(material) then
+                local dx, dy = dir_offset(dir)
+                local neighbor = self.grid[xy_to_id(bx + dx, by + dy)]
+                local exit_block = neighbor and neighbor.block
+
+                if exit_block and self.exit_block_set[exit_block] then
+                    local exit_edge = neighbor[INV_DIR[dir]]
+
+                    if exit_edge and is_walkable(exit_edge.material) then
+                        return true
+                    end
+                end
+            end
+        end
+
+        return false
+    end
+
     QuiltBuilder.find_connector_tile = function (self, x, y)
         local q = {
             room = false,
@@ -1988,6 +2679,14 @@ function Knossos.branch_quilt_builder()
                 end
 
                 local new_block = tile and self:try_spawning_block_here(step.x, step.y, tile) or nil
+
+                -- A connector tile that would open a second doorway into an exit is never a
+                -- valid link.  Culled the same way as any other dead step.
+                if new_block and self:block_joins_exit(new_block) then
+                    self:remove_block(new_block)
+
+                    new_block = nil
+                end
 
                 if new_block and new_block.neighbor_blocks[current] then
                     local connection = self:find_adjacent_connection(new_block, source_block, corridor_set, target_set)
