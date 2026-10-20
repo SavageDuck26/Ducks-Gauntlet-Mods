@@ -5,7 +5,7 @@ As with all mods: use at your own risk.
 
 **Credits:** 
 Mod Contributors: Skapp, Hoyt, Kryptic.
-Mod Testers: Siopilos, Mitch, Ky1, JMFC77, Choco, Windmill, masterslay, Kryptic, SealsOMG.
+Mod Testers: Siopilos, Mitch, Ky1, JMFC77, Choco, Windmill, masterslay, Kryptic, SealsOMG, Novita. 
 
 **Mod Descriptions:** 
 *AddUtility:* This is REQUIRED for some other mods to work. The mod adds utility checks like host checking and many bug fixes for other mods, as well as compatibility features for mods like Alliances.
