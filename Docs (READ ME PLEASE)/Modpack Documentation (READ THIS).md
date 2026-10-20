@@ -1,13 +1,13 @@
-**Ducks Modpack Documentation:** 
+**Ducks Modpack Documentation:** \
 This is a full compilation of the descriptions of my mods. Any questions you have, feel free to message or ping me. I love making these mods and plan to continue doing so for a long while.
 
 As with all mods: use at your own risk.
 
-**Credits:** 
-Mod Contributors: Skapp, Hoyt, Kryptic.
-Mod Testers: Siopilos, Mitch, Ky1, JMFC77, Choco, Windmill, masterslay, Kryptic, SealsOMG, Novita. 
+**Credits:** \
+*Mod Contributors:* Skapp, Hoyt, Kryptic. \
+*Mod Testers:* Siopilos, Mitch, Ky1, JMFC77, Choco, Windmill, masterslay, Kryptic, SealsOMG, Novita. 
 
-**Mod Descriptions:** 
+**Mod Descriptions:** \
 *AddUtility:* This is REQUIRED for some other mods to work. The mod adds utility checks like host checking and many bug fixes for other mods, as well as compatibility features for mods like Alliances.
 
 **Clientside Mods:**
@@ -18,9 +18,9 @@ Mod Testers: Siopilos, Mitch, Ky1, JMFC77, Choco, Windmill, masterslay, Kryptic,
 **Local Mods:**
 - *AnyColosseum:* Allows you to cycle through the Colosseum days in the main menu by pressing a hotkey. (Default keys are F1 for keyboard and R1 for controller) (Made at the request of masterslay)
 - *CharacterSelect:* Allows you to change your character mid game. Do this by opening the menu in game and pressing “F3” for keyboard or “R2” for controller.
-- *Doppelgangers:* Allows multiple of the same hero to be picked at once, played at once, and hotjoined with.
-    (DO NOT USE THE SAME CAPE AS ANOTHER DOPPELGANGER)
-    (Do NOT use more than one player on your device, not more than one local player.)
+- *Doppelgangers:* Allows multiple of the same hero to be picked at once, played at once, and hotjoined with. \
+    - (DO NOT USE THE SAME CAPE AS ANOTHER DOPPELGANGER) \
+    - (Do NOT use more than one player on your device, not more than one local player.)
 - *DucksAddons:* Adds some fun easter eggs and comments to the text of the game in the tips, endless shop, and loadscreen.
 - *DucksUI:* Adds a main menu choice to change the config settings for any mod with a config that is made by me (Duck). These settings autosave on menu exit.
 - *FragileHeroes:* Causes players to die immediately from any source of damage taken. (Requested by Lein)
@@ -31,23 +31,23 @@ Mod Testers: Siopilos, Mitch, Ky1, JMFC77, Choco, Windmill, masterslay, Kryptic,
 
 **Serverside Mods:**
 - *Berserkers(UI):* Enemies can enter Berserker mode, making them much faster. The difficulty of Berserkers ramps up over time, eventually activating Juggernaut mode. Juggernaut mode heals enemies for a period of time, making them much harder to kill. Enemies can enter Juggernaut mode by default as well.
-- *ChaosMode(UI):* Unrestricts enemy spawning in endless mode. This means summoning stones can spawn in corridors between rooms. Many more enemies also spawn in general, corridors and rooms included.
-- *ColosseumStones(UI):* Adds colosseum stones to endless mode instead of the normal spawners. (Replaces Bmod)
+- *ChaosMode(UI):* Unrestricted enemy spawning in endless mode. This means summoning stones can spawn in corridors between rooms. Many more enemies also spawn in general, corridors and rooms included. There are now toggles to add more bosses and stones, and to keep them only in encounter rooms. 
+- *ColosseumStones(UI):* Adds Colosseum stones to endless mode instead of the normal spawners. (Replaces Bmod)
 - *DissolvingGhosts:* Makes ghosts die after 12-15 seconds from spawning to avoid them floating outside of rooms and causing long waits.
 - *EnduranceMode:* Randomizes the floor type you play each level continuously with no portals.
 - *GraveTrappers(UI):* Enemies can spawn traps or trigger effects when they die.
 - *MeteorStorm(UI):* Enables the Firebombs in lava floors during endless mode. (Requested by Siopilos)
 - *MoreCrowns(UI):* Allows enemies to wear crowns more often. Displays the total amount of crowns picked up at the end of every level. (Requested by Siopilos and Kryptic)
 - *NoGhosts:* Removes ghosts spawning from the game and replaces them with skeletons. 
-- *RandomUrns(UI):* Changes the urns with gold in them, the goldrocks in caves, and the metal crates in lava levels to drop things from a set table instead. Can drop Explosive Barrels, Potions, Elemental Orbs. Other breakable props can drop gold or keys.
-- *SkullcoinScarcity:* Makes earning a skullcoin 4x harder. (Made at the request of Siopilos)
+- *RandomUrns(UI):* Changes props to drop things from a loot table instead that you can edit in the UI.
+- *SkullcoinScarcity:* Makes earning a Skullcoin 4x harder. (Made at the request of Siopilos)
 - *StrongerEnemies:* Gives enemies abilities from different things in the game, making them much more difficult to defeat.
-- *Summoners(UI):* Gives enemies the ability to summon other enemies.
-    Crypt Priest summons: Skeleton Warrior, Necromancer.
-    Crypt Skeleton Commander summons: Lich (Where arrow lands).
-    Caves Shaman summons: Homing Skull, Spider Queen.
-    Lava Sorcerer summons: Cultist Armor, Demon Heavy (Eye).
-    Lava Cultist Zealot summon: Demon Melee (On death).
+- *Summoners(UI):* Gives enemies the ability to summon other enemies. \
+    - Crypt Priest summons: Skeleton Warrior, Necromancer. \
+    - Crypt Skeleton Commander summons: Lich (Where arrow lands). \
+    - Caves Shaman summons: Homing Skull, Spider Queen. \
+    - Lava Sorcerer summons: Cultist Armor, Demon Heavy (Eye). \
+    - Lava Cultist Zealot summon: Demon Melee (On death). 
 
 **Trials Mods:**
 - *DeadMansHand:* Removes the ability to revive using Skullcoins. (Made for Gauntlet Trials at the request of Siopilos)
