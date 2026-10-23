@@ -32,7 +32,8 @@ As with all mods: use at your own risk.
 **Serverside Mods:**
 - *Berserkers(UI):* Enemies can enter Berserker mode, making them much faster. The difficulty of Berserkers ramps up over time, eventually activating Juggernaut mode. Juggernaut mode heals enemies for a period of time, making them much harder to kill. Enemies can enter Juggernaut mode by default as well.
 - *ChaosMode(UI):* Unrestricted enemy spawning in endless mode. This means summoning stones can spawn in corridors between rooms. Many more enemies also spawn in general, corridors and rooms included. There are now toggles to add more bosses and stones, and to keep them only in encounter rooms. 
-- *ColosseumStones(UI):* Adds Colosseum stones to endless mode instead of the normal spawners. (Replaces Bmod)
+- *ColosseumStones(UI):* Adds Colosseum stones to endless mode instead of the normal spawners. (Replaces Bmod) \
+	- Poison Colosseum Stones will causes crashes at random for non-modded players that are in your lobby.
 - *DissolvingGhosts:* Makes ghosts die after 12-15 seconds from spawning to avoid them floating outside of rooms and causing long waits.
 - *EnduranceMode:* Randomizes the floor type you play each level continuously with no portals.
 - *GraveTrappers(UI):* Enemies can spawn traps or trigger effects when they die.
