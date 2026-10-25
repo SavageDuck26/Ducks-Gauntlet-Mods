@@ -1,35 +1,35 @@
 ## Known Bugs (no order):
-*Bug:* RandomLoadout needs a visual update fix, loadouts don't update for those without the mods. (Reported by Siopilos)
+*Bug:* RandomLoadout needs a visual update fix, loadouts don't update for those without the mods. (Reported by Siopilos) \
 *Proposed Fix:* Add update func for non-modded in AddUtil
 
-*Bug:* New lava floor enemies sometimes prevent room doors from opening. If all players rejoin, the host can use the hidden ball to open the room.
+*Bug:* New lava floor enemies sometimes prevent room doors from opening. If all players rejoin, the host can use the hidden ball to open the room. \
 *Proposed Fix:* AddUtil update func to watch `cultist_armor_corpse` and force cleanup after ~15 seconds?
 
-*Bug:* Orb effects (Elementals) do not work when you are inside Wiza Barrier / Valkyrie Shield Pot, or when you break orbs using immune abilities (Thor Murder, Valkyrie AoE weapon, or dash on orbs). (Reported by Siopilos) 
+*Bug:* Orb effects (Elementals) do not work when you are inside Wiza Barrier / Valkyrie Shield Pot, or when you break orbs using immune abilities (Thor Murder, Valkyrie AoE weapon, or dash on orbs). (Reported by Siopilos)  \
 *Proposed Fix:* Change effects to ignore i-frames by applying instead of effecting.
 
-*Bug:* Pots cooldown + RandomLoadout do not display cooldown visuals correctly. (Reported by Siopilos)
+*Bug:* Pots cooldown + RandomLoadout do not display cooldown visuals correctly. (Reported by Siopilos) \
 *Proposed Fix:* N/A
 
-*Bug:* Enemy ignore bug: Sometimes enemies ignore certain players. Happens when using Doppelgangers, if a player is the “second doppelganger” they become invisible to the host.
+*Bug:* Enemy ignore bug: Sometimes enemies ignore certain players. Happens when using Doppelgangers, if a player is the “second doppelganger” they become invisible to the host. \
 *Proposed Fix:* Overhaul entire system, too many bugs present. Assign unique IDs?
 
-*Bug:* New Chaos Mode causes issues for players with low-performance PCs.
+*Bug:* New Chaos Mode causes issues for players with low-performance PCs. \
 *Proposed Fix:* Find a way to lower CPU usage. 
 
-*Bug:* RandomHero duplicates all potions and keys for non-host players when changing floors.
+*Bug:* RandomHero duplicates all potions and keys for non-host players when changing floors. \
 *Proposed Fix:* Force it to only run locally?
 
-*Bug:* RandomHero sometimes does not drop other players on floor change. Doppelgangers fixes this.
+*Bug:* RandomHero sometimes does not drop other players on floor change. Doppelgangers fixes this. \
 *Proposed Fix:* N/A
 
-*Bug:* TheLaziestHero and Curse Trial can crash for non-host players.
+*Bug:* TheLaziestHero and Curse Trial can crash for non-host players. \
 *Proposed Fix:* N/A
 
-*Bug:* Knossos with extra rooms can lock players behind key doors if it's the first room encountered. 
+*Bug:* Knossos with extra rooms can lock players behind key doors if it's the first room encountered.  \
 *Proposed Fix:* Higher chances for key drops based on amount of keydoors spawned?
 
-*Bug:* Fire Bomber explosion visuals do not appear.
+*Bug:* Fire Bomber explosion visuals do not appear. \
 *Proposed Fix:* N/A
 
 ## Mod Suggestions (by priority):
