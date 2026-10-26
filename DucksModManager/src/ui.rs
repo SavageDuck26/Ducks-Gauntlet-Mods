@@ -347,7 +347,7 @@ impl ModManagerApp {
         let mut mods = Vec::new();
         for pack_mod in pack::mods(pack_dir) {
             let rel = pack_mod.rel_path();
-            let theirs = pack::read_tree(&pack_dir.join(&rel));
+            let theirs = pack::read_tree(&pack::locate(pack_dir, &rel));
             let current = pack::fingerprint(&theirs);
 
             let state = match install_dir.as_ref().map(|dir| dir.join(&rel)) {
@@ -413,7 +413,7 @@ impl ModManagerApp {
     /// Brings one mod up to date from the pack, merging around local edits, then records where it
     /// came from. Problems are logged here.
     fn update_one(&mut self, pack_dir: &Path, install_dir: &Path, rel: &str) {
-        let theirs = pack::read_tree(&pack_dir.join(rel));
+        let theirs = pack::read_tree(&pack::locate(pack_dir, rel));
 
         // Nothing in the pack at this path means the row is stale or the pack copy is older than the
         // list — say that, rather than reporting a mod as "already up to date" when there is

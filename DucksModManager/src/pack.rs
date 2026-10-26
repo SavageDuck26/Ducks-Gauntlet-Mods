@@ -156,6 +156,29 @@ pub fn mods(root: &Path) -> Vec<PackMod> {
     found
 }
 
+/// The folder inside the pack copy that holds a mod's files.
+///
+/// `rel` is the wrapper-free path the list and the install both use, but the pack copy can nest
+/// everything one folder down — the repo keeps the pack in `Ducks-Modpack/` — so the wrapper has to
+/// be put back before anything can be read. Trying the direct path first keeps a pack that is not
+/// wrapped working, and a path that matches nothing comes back as-is so the caller reads an empty
+/// tree and can say so, rather than silently finding nothing.
+pub fn locate(pack_root: &Path, rel: &str) -> PathBuf {
+    let direct = pack_root.join(rel);
+    if direct.is_dir() {
+        return direct;
+    }
+
+    for child in folders(pack_root) {
+        let nested = child.join(rel);
+        if nested.is_dir() {
+            return nested;
+        }
+    }
+
+    direct
+}
+
 /// Whatever folder every mod sits inside, worked out from the mods themselves.
 fn wrapper_of(paths: &[String]) -> String {
     let mut shared: Option<Vec<&str>> = None;
@@ -486,6 +509,13 @@ mod tests {
             ]
         );
 
+        // Reading a mod has to put the wrapper back: the list path is wrapper-free, the folder is
+        // not, and joining the two was why nothing installed or updated after the pack moved.
+        assert_eq!(
+            locate(&root, "Local Mods/FragileHeroes"),
+            pack.join("Local Mods").join("FragileHeroes")
+        );
+
         fs::remove_dir_all(&root).ok();
     }
 
@@ -635,6 +665,88 @@ mod tests {
         assert_ne!(fingerprint(&one), fingerprint(&changed));
         assert_ne!(fingerprint(&one), fingerprint(&added));
         assert_eq!(fingerprint(&one).len(), 16);
+    }
+
+    /// End to end against the real remote, the way the Pull button does it: download the branch,
+    /// unpack it, scan it, install a mod out of it, pull again and expect nothing to do, then check
+    /// that a leftover from an older layout is pruned by the next pull.
+    ///
+    /// Ignored because it needs the network. Run it with:
+    ///
+    /// ```text
+    /// cargo test live_pull -- --ignored --nocapture
+    /// ```
+    #[test]
+    #[ignore]
+    fn live_pull_round_trip() {
+        let root = temp_root("ducksmm_live_pull");
+        let pack_dir = root.join("pack");
+        let installs = root.join("Ducks Mods");
+        let url = archive_url("https://github.com/SavageDuck26/Ducks-Gauntlet-Mods.git", "main");
+
+        // 1. Download and unpack, twice: the second is the same pack, so it costs one request.
+        match refresh(&pack_dir, &url).expect("first refresh") {
+            Refreshed::Changed { version } => println!("pack version {version}"),
+            Refreshed::Unchanged { .. } => panic!("the first refresh cannot find nothing to do"),
+        }
+        assert!(
+            matches!(
+                refresh(&pack_dir, &url).expect("second refresh"),
+                Refreshed::Unchanged { .. }
+            ),
+            "an unchanged pack should not be unpacked again"
+        );
+
+        // 2. The scan: categories, never the folder the repo wraps the pack in.
+        let paths: Vec<String> = mods(&pack_dir).iter().map(PackMod::rel_path).collect();
+        println!("{} mods found: {paths:?}", paths.len());
+
+        assert!(!paths.is_empty(), "the pack should hold mods");
+        assert!(
+            paths.iter().any(|path| path == "AddUtility(REQUIRED_FOR_MODS)"),
+            "the required mod should be found at the top of the pack"
+        );
+        assert!(
+            paths.iter().any(|path| path.starts_with("Local Mods/")),
+            "categories below the wrapper should be found"
+        );
+        assert!(
+            paths.iter().all(|path| !path.starts_with("Ducks-Modpack")),
+            "the wrapper leaked into a mod path: {paths:?}"
+        );
+
+        // 3. A pull: install one mod, then pull again with the pack's version as the base, exactly as
+        //    `update_one` does.
+        let rel = "Local Mods/DucksUI";
+        let theirs = read_tree(&locate(&pack_dir, rel));
+        assert!(!theirs.is_empty(), "{rel} should be in the pack copy");
+
+        let first = crate::install::update(None, &theirs, &installs.join(rel)).expect("install it");
+        println!("first pull: {} written, {} removed", first.written, first.deleted);
+        assert!(first.written > 0, "a fresh install should write files");
+
+        let second =
+            crate::install::update(Some(&theirs), &theirs, &installs.join(rel)).expect("pull again");
+        assert!(
+            second.quiet(),
+            "pulling an up-to-date mod should do nothing, got {} written, {} removed, {} conflicts",
+            second.written,
+            second.deleted,
+            second.conflicts.len()
+        );
+
+        // 4. A file left over from an older layout is pruned by the next pull.
+        let leftover = installs.join(rel).join("Ducks Mods").join("script_stale.lua");
+        fs::create_dir_all(leftover.parent().unwrap()).expect("create the leftover's folder");
+        fs::write(&leftover, "-- stale").expect("write the leftover");
+
+        let third =
+            crate::install::update(Some(&theirs), &theirs, &installs.join(rel)).expect("pull again");
+        println!("pruning pull: {} written, {} removed", third.written, third.deleted);
+        assert_eq!(third.deleted, 1, "the leftover should be the only thing removed");
+        assert!(!leftover.exists(), "the leftover should be gone");
+
+        fs::remove_dir_all(&root).ok();
     }
 }
 
