@@ -52,10 +52,8 @@ impl PackMod {
 /// in memory, and this keeps the compare and merge code free of filesystem and git details.
 pub type Tree = BTreeMap<String, Vec<u8>>;
 
-/// Opens the pack copy, cloning it first if this is the first run.
-/// because it only holds folders, so its children are the mods.
-/// GitHub's archive of a branch, which is what the manager downloads. Public, no API and no token,
-/// and it redirects to codeload — which ureq follows.
+/// The tarball for a branch: GitHub's archive of it, which is what the manager downloads. Public,
+/// no API and no token, and it redirects to codeload — which ureq follows.
 pub fn archive_url(repo_url: &str, branch: &str) -> String {
     let base = repo_url.trim_end_matches('/');
     let base = base.strip_suffix(".git").unwrap_or(base);
@@ -439,7 +437,7 @@ mod tests {
                 .join("caves.lua"),
             "-- caves",
         );
-        write_file(&root.join("Docs (READ ME PLEASE)").join("Local Mods.md"), "docs");
+        write_file(&root.join("Docs").join("Local Mods.md"), "docs");
 
         let found: Vec<String> = mods(&root).iter().map(PackMod::rel_path).collect();
 

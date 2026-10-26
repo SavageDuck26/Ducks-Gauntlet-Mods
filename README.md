@@ -1,10 +1,9 @@
 This is where I will be updating my modpack for Gauntlet Slayer Edition using the Bitesquid mod loader made by Skapp. Please read all Documentation for mods before using them. Modding Discord server (https://discord.com/invite/QCrzH9dVpJ).
 
 **Important Notes:**
-- update.py pulls the newest release if you choose to use it. Please never run modified python files.
+- The Mod Manager is the easiest way to update/track mods. It is not required, but it is recommened.
 - My mods will NOT run correctly without the mod **AddUtility**. Please be sure to have this mod on at all times, it also functions as a compatibility mod, meaning you may crash while joining other modded games without it on.
-
-All mods and their documentation live inside the **Ducks-Modpack** folder. Copy the mod folders you want from there into your own Bitesquid mods folder.
+- All mods and their documentation live inside the **Ducks-Modpack/Docs** folder.
 
 Mods are split into a few different categories:
 - **Clientside Mods:** These mods only work if all players are using them with identical settings. Otherwise: players without the mods and settings will likely crash when joining a Clientside modded game.
