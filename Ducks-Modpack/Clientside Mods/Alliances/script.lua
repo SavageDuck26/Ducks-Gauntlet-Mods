@@ -1,6 +1,6 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.8.0"
+local MOD_VERSION = "1.8.1"
 local MOD_DESCRIPTION = "Mixes all factions in Endless"
 
 local MOD_NAME, log_message = Mods.init_mod(nil, "mods/Alliances/Alliances.lua")
