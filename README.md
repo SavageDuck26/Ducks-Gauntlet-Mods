@@ -10,3 +10,13 @@ Mods are split into a few different categories:
 - **Local Mods:** These mods only affect your own game, not others.
 - **Serverside Mods:** These mods affect all players as long you are the host. (These mods can have effects in them that are Local only as well)
 - **Trials Mods:** These mods are for Gauntlet Trials, created in the main Gauntlet Official™ Discord server (https://discord.com/invite/EkN5zA8U).
+
+## Mod Manager
+The Mod Manager downloads the modpack updates from GitHub directly over HTTPS; the `main` branch, which is where the mods are updated.
+Installing mods always uses the latest version from the modpack. 
+
+Once you pick a mods folder path for the manager (Ex. `/AppData/Local/BITESQUID/Gauntlet/mods`), it will check for updates,
+and allow individual mod installation/deletion. The manager can make mod savestates, which is a snapshot of your currently installed mods.
+You can name these snapshots and restore your mods to them at any point. 
+
+You do not have to use the manager either, mods still function the same way without it, this is simply to make it easier to track and update mods. 
