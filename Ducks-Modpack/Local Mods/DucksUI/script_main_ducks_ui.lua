@@ -1,6 +1,6 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "3.4.0"
+local MOD_VERSION = "3.5.0"
 local MOD_DESCRIPTION = "Main mod menu overlay system"
 
 
@@ -36,6 +36,60 @@ local function resolve_callback(func_name)
 end
 
 
+-- Back-button compatibility. In the menu input map the pad's circle button and the keyboard's Esc
+-- both arrive as the input named "back", so one handler covers both.
+local function set_back_handler(widget, go_back)
+    local function handle()
+        go_back()
+        return true
+    end
+
+    for _, input_name in ipairs({"back", "cancel"}) do
+        widget:set_on_pressed(input_name, handle)
+        -- Storing the handler is not enough: the GUI registers them when a modal is added, and a
+        -- nested menu was added by the mod that owns it before we got here. Register it ourselves.
+        -- Registering twice is harmless; the GUI keeps widgets in a set.
+        GUI:register_on_pressed(widget, input_name)
+    end
+end
+
+-- The top of the GUI's modal stack: whatever the player is looking at.
+local function top_modal()
+    local top = nil
+    for _, widget in GUI:modal_widget_iterator() do
+        top = widget
+    end
+    return top
+end
+
+-- The config menus opened from the main overlay belong to other mods, so DucksUI closes them the
+-- way it opened them: through the mod's own function. Every mod pairs show_X with hide_X, and
+-- calling hide_X is what clears its "already open" state -- taking the widget off the stack from
+-- here would leave that panel impossible to reopen.
+local open_panel_hide = nil
+
+local function close_open_panel()
+    if not open_panel_hide then
+        return false
+    end
+
+    local hide = open_panel_hide
+    open_panel_hide = nil
+    hide()
+
+    return true
+end
+
+-- "Alliances.show_config" -> "Alliances.hide_config"
+local function hide_name_of(callback_name)
+    if type(callback_name) ~= "string" then
+        return nil
+    end
+
+    return (callback_name:gsub("show", "hide", 1))
+end
+
+
 -- List of mod namespaces that use the CONFIG pattern
 local REGISTERED_MODS = {
     "Alliances",
@@ -56,6 +110,22 @@ local REGISTERED_MODS = {
 
 local current_overlay_widget = nil
 local current_descriptions_widget = nil
+
+-- Some of those panels rebuild themselves when a checkbox is clicked: the mod hides its widget and
+-- shows a fresh one, so a handler attached to the old widget dies with it. Watching for panels being
+-- added, rather than attaching once, means a rebuilt panel gets the handler too. Sliders only change
+-- values, which is why they were never affected.
+Mods.hook:set_object_path("GUI", "add_modal_widget",
+    function (orig, self, widget, user_name)
+        local result = orig(self, widget, user_name)
+
+        if open_panel_hide and widget ~= current_overlay_widget then
+            set_back_handler(widget, close_open_panel)
+        end
+
+        return result
+    end, MOD_NAME .. ".GUI.add_modal_widget", MOD_NAME)
+
 
 local function create_descriptions_overlay_ui()
     return {
@@ -227,6 +297,7 @@ function show_descriptions_overlay()
         return
     end
     current_descriptions_widget = GUI:load_proto(create_descriptions_overlay_ui())
+    set_back_handler(current_descriptions_widget, hide_descriptions_overlay)
     GUI:add_modal_widget(current_descriptions_widget, GUI.MAIN_CONTROLLER)
 end
 
@@ -246,6 +317,7 @@ function show_documentation_overlay()
         return
     end
     current_documentation_widget = GUI:load_proto(create_documentation_overlay_ui())
+    set_back_handler(current_documentation_widget, hide_documentation_overlay)
     GUI:add_modal_widget(current_documentation_widget, GUI.MAIN_CONTROLLER)
 end
 
@@ -330,9 +402,19 @@ local function create_duck_overlay_ui()
                     local func_name = btn_config.callback
                     local func = func_name and resolve_callback(func_name)
                     if func then
+                        open_panel_hide = resolve_callback(hide_name_of(func_name))
                         local ok2, result = pcall(func)
                         if ok2 and type(result) == "function" then
                             pcall(result)
+                        end
+                        -- Whatever that mod just put on screen is now on top of our overlay, so
+                        -- give it the same back handling. Where a mod has no hide_X to pair with,
+                        -- there is nothing to call, and its own Back button stays the way out.
+                        if open_panel_hide then
+                            local panel = top_modal()
+                            if panel and panel ~= current_overlay_widget then
+                                set_back_handler(panel, close_open_panel)
+                            end
                         end
                     end
                 end
@@ -459,6 +541,7 @@ function show_duck_overlay()
         pcall(DucksUI.import_all_settings)
     end
     current_overlay_widget = GUI:load_proto(create_duck_overlay_ui())
+    set_back_handler(current_overlay_widget, hide_duck_overlay)
     
     GUI:add_modal_widget(current_overlay_widget, GUI.MAIN_CONTROLLER)    
 end
@@ -471,6 +554,8 @@ function hide_duck_overlay()
     if DucksUI.save_all_settings then
         pcall(DucksUI.save_all_settings)
     end
+
+    open_panel_hide = nil
 
     GUI:remove_modal_widget(current_overlay_widget)
     
