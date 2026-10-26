@@ -1,4 +1,5 @@
 *.zip
 
 DEV/
-target/
+DucksModManager/target/
+DucksModManager/dist/

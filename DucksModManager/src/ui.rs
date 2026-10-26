@@ -29,7 +29,16 @@ const SETTINGS_FILE: &str = "settings.conf";
 
 /// One line beside the executable holding the mods folder picked last time. It has to live outside
 /// the mods tree: it is the only thing that can lead the manager back to its appdata folder.
-const POINTER_FILE: &str = "DucksModManager.path";
+///
+/// The name carries the platform because the folder it points at is written the way that platform
+/// writes paths. Ship both builds in one folder — as `dist/` does — and a shared name would have
+/// them overwriting each other, leaving whichever launched second pointed at a path the other OS
+/// cannot read.
+const POINTER_FILE: &str = if cfg!(windows) {
+    "DucksModManager-windows.path"
+} else {
+    "DucksModManager.path"
+};
 
 const ROW_HEIGHT: f32 = 22.0;
 const COL_CHECK: f32 = 20.0;
@@ -220,6 +229,13 @@ pub struct ModManagerApp {
 
 impl ModManagerApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // The whole interface is built for a dark background, so the theme is pinned rather than
+        // followed. egui re-reads the OS theme every frame: left on "follow the system", a machine
+        // set to light mode gets the light palette and every custom colour here stops working —
+        // which is exactly what a stock Windows install did. The window frame is asked for the same
+        // theme, so the title bar does not come back white on top of a dark window.
+        cc.egui_ctx.set_theme(egui::ThemePreference::Dark);
+        cc.egui_ctx.send_viewport_cmd(egui::ViewportCommand::SetTheme(egui::SystemTheme::Dark));
         cc.egui_ctx.set_visuals(egui::Visuals::dark());
         // Item spacing drives the header row, so it has to match the grid's column spacing.
         cc.egui_ctx.style_mut(|style| style.spacing.item_spacing = egui::vec2(COL_SPACING, 6.0));
@@ -512,7 +528,11 @@ impl ModManagerApp {
     /// Native folder picker: real Explorer dialog on Windows, portal dialog on Linux.
     fn browse(&mut self) {
         let mut dialog = rfd::FileDialog::new().set_title("Select the folder where your mods go");
-        if let Some(root) = &self.settings.mods_root {
+        // Only a folder that exists on *this* system is offered as a starting point. A path saved on
+        // the other platform — a Linux mods folder under Wine, say — is not merely useless here:
+        // Windows' folder dialog refuses to open at all, with "Invalid character(s) in path", rather
+        // than falling back to somewhere sensible.
+        if let Some(root) = self.settings.mods_root.as_ref().filter(|root| root.is_dir()) {
             dialog = dialog.set_directory(root);
         }
 
