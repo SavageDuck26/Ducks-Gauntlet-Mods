@@ -1,0 +1,34 @@
+[package]
+name = "ducksmodmanager"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# Immediate-mode GUI. 0.29 keeps the glow (OpenGL) backend.
+eframe = "0.29"
+# libgit2, compiled into the app. It does the local work only — reading the pack's history and
+# three-way merging files — so it is built without its network transports: no OpenSSL, no libssh2,
+# nothing for the player to install.
+git2 = { version = "0.21.0", default-features = false }
+
+# All the HTTPS. ureq's defaults are `rustls` + `gzip`, and that `rustls` feature is
+# `rustls-no-provider` + `ring` + `webpki-roots` — so the Mozilla roots are compiled into the
+# binary, the TLS stack is pure Rust with no system certificate store, and there is no git, ssh or
+# gh to install on the player's machine.
+ureq = "3.5.0"
+# GitHub hands out .tar.gz snapshots and .zip release assets; these unpack them.
+flate2 = "1.0"
+tar = "0.4"
+zip = { version = "9.0.0", default-features = false, features = ["deflate"] }
+
+# A release asset is checked against the SHA256 GitHub publishes before anything is unpacked.
+sha2 = "0.11.0"
+# Native folder picker: IFileDialog on Windows, xdg-portal on Linux. The mods folder is always
+# chosen by the user at runtime, never compiled in.
+rfd = "0.15"
+
+[profile.release]
+lto = "thin"
+opt-level = 3
+codegen-units = 1
+strip = "symbols"
