@@ -13,7 +13,7 @@ local current_alliances_config_widget = nil
 
 -- Slider range. 1 is the most common spawn, 8 the rarest (see the weight note in script.lua).
 local WEIGHT_MIN = 1
-local WEIGHT_MAX = 7
+local WEIGHT_MAX = 13
 
 function Alliances.update_weight_displays()
     if not current_alliances_config_widget or not current_alliances_config_widget.get then

@@ -592,7 +592,7 @@ impl ModManagerApp {
     /// `DucksModManager` beside the mods folder. Until a mods folder is picked there is nowhere to
     /// look, so the folder has to be chosen once per launch before saved settings can be found.
     fn appdata_dir(&self) -> Option<PathBuf> {
-        Some(self.settings.mods_root.as_ref()?.join(APPDATA_DIR))
+        Some(appdata_dir(self.settings.mods_root.as_ref()?))
     }
 
     /// The settings file, once a mods folder has been chosen.
@@ -1451,6 +1451,16 @@ fn write_text(path: &Path, text: &str) -> std::io::Result<()> {
     std::fs::write(path, text)
 }
 
+/// `DucksModManager` beside the mods folder — one level up from it, never inside it.
+///
+/// The loader scans the mods folder for `.lua` files, and both the pack copy and the merge bases are
+/// full of them, so anything kept inside the mods folder is read as mods in its own right. Beside it,
+/// the game never looks at it, and a mods folder picked again still finds the same settings, saves
+/// and bases.
+fn appdata_dir(mods_root: &Path) -> PathBuf {
+    mods_root.parent().unwrap_or(mods_root).join(APPDATA_DIR)
+}
+
 /// The pointer's home: beside the executable, because at startup nothing else is known yet.
 fn pointer_path() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
@@ -1518,6 +1528,21 @@ mod tests {
 
     fn temp_path(name: &str) -> PathBuf {
         std::env::temp_dir().join(name).join(SETTINGS_FILE)
+    }
+
+    /// The manager's own folder sits beside the mods folder, not inside it: the loader reads `.lua`
+    /// files out of the mods folder, and the pack copy and merge bases are nothing but `.lua` files.
+    #[test]
+    fn appdata_sits_beside_the_mods_folder() {
+        let mods = Path::new("/games/BITESQUID/Gauntlet/mods");
+
+        assert_eq!(
+            appdata_dir(mods),
+            Path::new("/games/BITESQUID/Gauntlet/DucksModManager")
+        );
+
+        // A root with nothing above it still gets a folder rather than no answer at all.
+        assert_eq!(appdata_dir(Path::new("/")), Path::new("/DucksModManager"));
     }
 
     /// The settings file is the only thing that makes choices stick between launches, so it has to
