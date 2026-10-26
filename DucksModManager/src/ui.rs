@@ -1,12 +1,12 @@
 //! Prototype GUI for the Ducks mod manager: layout and interaction only.
 //!
-//! The only files it touches are its own: `DucksModManager/settings.conf` and the savestates under
-//! `DucksModManager/savestate` beside the mods folder, plus a one-line pointer to that folder next
-//! to the executable. Fetching the pack, copying and deleting are still stubs — every action
-//! appends to the log so the intended flow is visible, and the real engine lands behind the same
-//! buttons later. Nothing here shells out to git: the manager has to work on machines that have
-//! never installed it. The sample rows mirror the repo's `Ducks-Modpack` layout, so the list
-//! already looks like the real thing.
+//! The only files it touches are its own, all beside the mods folder: `settings.conf`, the pack copy
+//! under `pack`, the merge bases under `base`, the install record, and the savestates. The one thing
+//! that cannot live there is a one-line pointer to that folder, kept next to the executable.
+//!
+//! Nothing here shells out to git. The pack is a plain HTTPS download of GitHub's archive, so this
+//! works on a machine that has never had git installed. The loader registers new `.lua` files by
+//! itself, so installing a mod is all that is needed for it to show up in game.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -140,9 +140,6 @@ struct Settings {
     branch: String,
     mods_root: Option<PathBuf>,
     install_name: String,
-    register_manifest: bool,
-    prune_removed: bool,
-    backup_before_write: bool,
     savestate_before_pull: bool,
 }
 
@@ -153,10 +150,6 @@ impl Default for Settings {
             branch: DEFAULT_BRANCH.to_owned(),
             mods_root: None,
             install_name: DEFAULT_INSTALL_NAME.to_owned(),
-            // New files must be listed in settings/mods.json or the loader ignores them.
-            register_manifest: true,
-            prune_removed: false,
-            backup_before_write: true,
             // A pull overwrites the installed mods wholesale, so snapshot them first.
             savestate_before_pull: true,
         }
@@ -165,8 +158,8 @@ impl Default for Settings {
 
 /// Result of the last check against the remote.
 ///
-/// `Checking` and `Failed` are already rendered by the header but nothing constructs them yet: the
-/// stub check is synchronous and cannot fail. The real check fills them in.
+/// `Checking` is rendered by the header but nothing sets it yet: the check is synchronous, so it
+/// never spends a frame in that state. `Failed` is real, and shown when a fetch cannot happen.
 #[allow(dead_code)]
 enum UpdateState {
     Unknown,
@@ -765,7 +758,6 @@ impl ModManagerApp {
             .collect();
         let missing = self.mods.len() - installed.len();
 
-        self.note_unwired_options();
         self.warn_about_unrecorded(&installed);
         for rel in &installed {
             self.update_one(&pack_dir, &destination, rel);
@@ -876,7 +868,6 @@ impl ModManagerApp {
             return;
         }
 
-        self.note_unwired_options();
         self.warn_about_unrecorded(&chosen);
         for rel in &chosen {
             self.update_one(&pack_dir, &destination, rel);
@@ -884,29 +875,6 @@ impl ModManagerApp {
 
         self.refresh_mods(&pack_dir);
         self.info(format!("{} mod(s) installed.", chosen.len()));
-    }
-
-    /// Says out loud which Advanced options are switched on but not wired into the engine yet, so
-    /// nothing looks like it works when it does not.
-    fn note_unwired_options(&mut self) {
-        let mut pending: Vec<&str> = Vec::new();
-
-        if self.settings.register_manifest {
-            pending.push("registering new .lua files in settings/mods.json");
-        }
-        if self.settings.prune_removed {
-            pending.push("deleting files the pack dropped");
-        }
-        if self.settings.backup_before_write {
-            pending.push("per-file *.bak_ducksmm backups");
-        }
-
-        if !pending.is_empty() {
-            self.warn(format!(
-                "Not wired up yet, so these do nothing: {}.",
-                pending.join(", ")
-            ));
-        }
     }
 
     /// Install — or reinstall — one mod, straight from its row button.
@@ -977,7 +945,7 @@ impl ModManagerApp {
         ui.horizontal(|ui| {
             ui.heading("Ducks Mod Manager");
             ui.label(
-                RichText::new("prototype UI — actions are logged, nothing is written yet").weak(),
+                RichText::new("fetches the pack itself — no git needed").weak(),
             );
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if ui.button("Open mods folder").clicked() {
@@ -1167,18 +1135,6 @@ impl ModManagerApp {
                     &mut self.settings.savestate_before_pull,
                     "Savestate the installed mods before pulling an update",
                 );
-                ui.checkbox(
-                    &mut self.settings.register_manifest,
-                    "Register new .lua files in settings/mods.json",
-                );
-                ui.checkbox(
-                    &mut self.settings.prune_removed,
-                    "Delete installed files that no longer exist upstream",
-                );
-                ui.checkbox(
-                    &mut self.settings.backup_before_write,
-                    "Keep a *.bak_ducksmm backup of every file overwritten",
-                );
             });
 
         ui.add_space(4.0);
@@ -1355,7 +1311,7 @@ impl ModManagerApp {
                 *action = Some(Action::InstallSelected);
             }
             ui.label(
-                RichText::new("[stub] copies from the manager's own copy of the pack").weak(),
+                RichText::new("Installs from the manager's own copy of the pack.").weak(),
             );
 
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -1440,9 +1396,6 @@ fn read_settings(path: &Path) -> Option<Settings> {
             "repo_url" => settings.repo_url = value.to_owned(),
             "branch" => settings.branch = value.to_owned(),
             "install_name" => settings.install_name = value.to_owned(),
-            "register_manifest" => settings.register_manifest = read_bool(value),
-            "prune_removed" => settings.prune_removed = read_bool(value),
-            "backup_before_write" => settings.backup_before_write = read_bool(value),
             "savestate_before_pull" => settings.savestate_before_pull = read_bool(value),
             // Unknown keys are ignored, so an older build can still read a newer file.
             _ => {}
@@ -1461,15 +1414,6 @@ fn write_settings(path: &Path, settings: &Settings) -> std::io::Result<()> {
     text.push_str(&format!(
         "install_name = {}\n",
         saver::one_line(&settings.install_name)
-    ));
-    text.push_str(&format!(
-        "register_manifest = {}\n",
-        settings.register_manifest
-    ));
-    text.push_str(&format!("prune_removed = {}\n", settings.prune_removed));
-    text.push_str(&format!(
-        "backup_before_write = {}\n",
-        settings.backup_before_write
     ));
     text.push_str(&format!(
         "savestate_before_pull = {}\n",
@@ -1566,9 +1510,6 @@ mod tests {
             branch: "testing".to_owned(),
             mods_root: None,
             install_name: "Ducks Mods".to_owned(),
-            register_manifest: false,
-            prune_removed: true,
-            backup_before_write: false,
             savestate_before_pull: true,
         };
 
@@ -1578,9 +1519,6 @@ mod tests {
         assert_eq!(loaded.repo_url, settings.repo_url);
         assert_eq!(loaded.branch, settings.branch);
         assert_eq!(loaded.install_name, settings.install_name);
-        assert_eq!(loaded.register_manifest, settings.register_manifest);
-        assert_eq!(loaded.prune_removed, settings.prune_removed);
-        assert_eq!(loaded.backup_before_write, settings.backup_before_write);
         assert_eq!(loaded.savestate_before_pull, settings.savestate_before_pull);
 
         // The file is meant to be readable and hand-editable, so pin its shape too.
@@ -1588,8 +1526,6 @@ mod tests {
         assert!(text.starts_with("# Ducks Mod Manager settings."));
         assert!(text.contains("repo_url = https://example.invalid/pack.git\n"));
         assert!(text.contains("branch = testing\n"));
-        assert!(text.contains("register_manifest = false\n"));
-        assert!(text.contains("prune_removed = true\n"));
         assert!(text.contains("savestate_before_pull = true\n"));
 
         std::fs::remove_dir_all(path.parent().unwrap()).ok();

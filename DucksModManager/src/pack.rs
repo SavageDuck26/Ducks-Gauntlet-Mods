@@ -122,18 +122,77 @@ pub fn unpack(archive: &Path, out: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// The pack is often wrapped in a folder or two — `Ducks-Modpack/` in the repo, plus GitHub's own
+/// archive folder — so the wrapper is worked out from the mods rather than assumed: whatever every
+/// mod path has in common is the wrapper, and a category is a folder below it. That keeps a mod's
+/// category, and its install path, the same however the repo rearranges itself.
 pub fn mods(root: &Path) -> Vec<PackMod> {
-    let mut found = Vec::new();
+    let mut paths = Vec::new();
+    collect_mods(root, "", &mut paths);
 
-    for folder in folders(root) {
-        // The category is the top-level folder, whether the mod turns out to be that folder itself
-        // or one of its children.
-        let category = file_name(&folder);
-        collect_mods(&folder, &category, &mut found);
-    }
+    let wrapper = wrapper_of(&paths);
+
+    let mut found: Vec<PackMod> = paths
+        .iter()
+        .map(|path| {
+            let short = path
+                .strip_prefix(&wrapper)
+                .unwrap_or(path)
+                .trim_start_matches('/');
+
+            match short.rsplit_once('/') {
+                Some((category, name)) => PackMod {
+                    category: category.to_owned(),
+                    name: name.to_owned(),
+                },
+                // A mod sitting right at the top of the pack is its own category.
+                None => PackMod {
+                    category: short.to_owned(),
+                    name: short.to_owned(),
+                },
+            }
+        })
+        .collect();
 
     found.sort_by_key(PackMod::rel_path);
     found
+}
+
+/// Whatever folder every mod sits inside, worked out from the mods themselves.
+fn wrapper_of(paths: &[String]) -> String {
+    let mut shared: Option<Vec<&str>> = None;
+
+    for path in paths {
+        let parent = path.rsplit_once('/').map(|(parent, _)| parent).unwrap_or("");
+        let parts: Vec<&str> = if parent.is_empty() {
+            Vec::new()
+        } else {
+            parent.split('/').collect()
+        };
+
+        shared = Some(match shared {
+            None => parts,
+            Some(kept) => kept
+                .into_iter()
+                .zip(parts)
+                .take_while(|(one, other)| one == other)
+                .map(|(one, _)| one)
+                .collect(),
+        });
+    }
+
+    let wrapper = shared.unwrap_or_default().join("/");
+
+    // If nothing would be left below it, that "wrapper" was really a category — a pack holding a
+    // single mod, say — so leave it alone.
+    let leaves_categories = paths.iter().any(|path| {
+        path.strip_prefix(&wrapper)
+            .unwrap_or(path)
+            .trim_start_matches('/')
+            .contains('/')
+    });
+
+    if leaves_categories { wrapper } else { String::new() }
 }
 
 /// Reads a folder from disk into a [`Tree`], keyed by path relative to `dir`.
@@ -144,18 +203,18 @@ pub fn read_tree(dir: &Path) -> Tree {
 }
 
 /// Reads one mod folder out of the pack's history: how it looked at `commit`.
-/// Walks down until it reaches a folder holding a `.lua` directly; that folder is the mod.
-fn collect_mods(dir: &Path, category: &str, found: &mut Vec<PackMod>) {
+/// Walks down until it reaches a folder holding a `.lua` directly; that folder is the mod. Its path
+/// is recorded relative to where the walk began.
+fn collect_mods(dir: &Path, prefix: &str, found: &mut Vec<String>) {
     if holds_lua(dir) {
-        found.push(PackMod {
-            category: category.to_owned(),
-            name: file_name(dir),
-        });
+        if !prefix.is_empty() {
+            found.push(prefix.to_owned());
+        }
         return;
     }
 
     for child in folders(dir) {
-        collect_mods(&child, category, found);
+        collect_mods(&child, &join(prefix, &file_name(&child)), found);
     }
 }
 
@@ -390,6 +449,41 @@ mod tests {
                 // The folder that holds a `.lua` itself is the mod, so its path is just the folder.
                 "AddUtility(REQUIRED_FOR_MODS)".to_owned(),
                 "Clientside Mods/Knossos".to_owned(),
+                "Trials Mods".to_owned(),
+            ]
+        );
+
+        fs::remove_dir_all(&root).ok();
+    }
+
+    /// Once the repo nests the pack inside `Ducks-Modpack/`, the categories are the folders *below*
+    /// that — not the wrapper — so every install stays exactly where it already was.
+    #[test]
+    fn a_wrapped_pack_is_unwrapped() {
+        let root = temp_root("ducksmm_pack_wrapped");
+        let pack = root.join("Ducks-Modpack");
+
+        write_file(
+            &pack.join("AddUtility(REQUIRED_FOR_MODS)").join("script_main.lua"),
+            "-- one",
+        );
+        write_file(
+            &pack.join("Local Mods").join("FragileHeroes").join("script.lua"),
+            "-- fragile",
+        );
+        write_file(
+            &pack.join("Trials Mods").join("script_main_trials.lua"),
+            "-- trials",
+        );
+        write_file(&root.join("README.md"), "docs");
+
+        let found: Vec<String> = mods(&root).iter().map(PackMod::rel_path).collect();
+
+        assert_eq!(
+            found,
+            vec![
+                "AddUtility(REQUIRED_FOR_MODS)".to_owned(),
+                "Local Mods/FragileHeroes".to_owned(),
                 "Trials Mods".to_owned(),
             ]
         );

@@ -102,15 +102,27 @@ fn paths<'a>(ours: &'a Tree, theirs: &'a Tree) -> BTreeSet<&'a str> {
 
 /// Works out how to bring an installed mod up to date.
 ///
-/// With no `base` there is nothing to merge against, so the pack simply wins and files that only
-/// exist on the player's side are left alone. The savestate taken beforehand is what makes that
-/// acceptable.
+/// A pull makes the install mirror the pack: every file the pack still has is merged, so the player's
+/// edits survive, and every file it does not have is removed — leftovers from an older layout
+/// included, which is why a pull is what clears those up. The one exception is a file the base knew
+/// about that the player then edited: removing that would throw their work away, so it is reported
+/// instead.
+///
+/// With no `base` there is nothing to compare against, so the pack wins outright. The savestate taken
+/// beforehand is what makes that acceptable.
 pub fn plan(base: Option<&Tree>, ours: &Tree, theirs: &Tree) -> Plan {
     let Some(base) = base else {
         let mut plan = Plan::default();
         for (path, content) in theirs {
             if ours.get(path) != Some(content) {
                 plan.writes.push((path.clone(), content.clone()));
+            }
+        }
+        // Nothing here can tell the pack's files from left-behind ones, so anything the pack does not
+        // have goes. That is what clears the remains of an older layout.
+        for path in ours.keys() {
+            if !theirs.contains_key(path) {
+                plan.deletes.push(path.clone());
             }
         }
         return plan;
@@ -133,8 +145,14 @@ pub fn plan(base: Option<&Tree>, ours: &Tree, theirs: &Tree) -> Plan {
         match (ours != base, theirs != base) {
             // Nobody changed it, or both sides ended up with the same content.
             (false, false) => {}
-            // Only the player changed it: their version stays.
-            (true, false) => {}
+            // Only the player changed it: their version stays — unless the pack has no such file at
+            // all, because then it was added to the install folder after the fact rather than
+            // edited, and a pull mirrors the pack.
+            (true, false) => {
+                if theirs.is_none() {
+                    plan.deletes.push(path.to_owned());
+                }
+            }
             // Only the pack changed it: take the pack's version, or drop it if the pack dropped it.
             (false, true) => match theirs {
                 Some(content) => plan.writes.push((path.to_owned(), content.clone())),
@@ -149,8 +167,9 @@ pub fn plan(base: Option<&Tree>, ours: &Tree, theirs: &Tree) -> Plan {
                         None => plan.conflicts.push(path.to_owned()),
                     }
                 }
-                // Added on both sides, or deleted on one side while changed on the other: not
-                // something to guess at.
+                // The pack dropped a file the player had edited: their work is not thrown away, it
+                // is reported. Also covers files added on both sides, and one side deleting what
+                // the other changed — not something to guess at.
                 _ => plan.conflicts.push(path.to_owned()),
             },
         }
@@ -334,9 +353,10 @@ mod tests {
             .collect()
     }
 
-    /// Untouched files, and files only the player changed, are not in the plan at all.
+    /// Untouched files are not in the plan at all, and a file the player edited is left to the merge
+    /// rather than written over.
     #[test]
-    fn untouched_and_player_only_files_are_left_alone() {
+    fn untouched_and_player_edited_files_are_left_alone() {
         let base = tree(&[("a.lua", "a"), ("b.lua", "b")]);
         let ours = tree(&[("a.lua", "a"), ("b.lua", "player")]);
         let theirs = tree(&[("a.lua", "a"), ("b.lua", "b")]);
@@ -448,9 +468,10 @@ mod tests {
         assert_eq!(plan.conflicts, vec!["new.lua".to_owned()]);
     }
 
-    /// With no record there is no base, so the pack wins — but files only the player has stay.
+    /// With no record there is no base, so the pack wins outright: everything it has is written, and
+    /// anything the install folder holds that it does not have is removed.
     #[test]
-    fn without_a_base_the_pack_wins_but_player_files_stay() {
+    fn without_a_base_the_pack_wins_outright() {
         let ours = tree(&[("a.lua", "old"), ("mine.lua", "player")]);
         let theirs = tree(&[("a.lua", "new"), ("b.lua", "pack")]);
 
@@ -463,7 +484,22 @@ mod tests {
                 ("b.lua".to_owned(), "pack".to_owned()),
             ]
         );
-        assert!(plan.deletes.is_empty());
+        assert_eq!(plan.deletes, vec!["mine.lua".to_owned()]);
+    }
+
+    /// A file added to the install folder after the mod was installed is not part of the pack, so a
+    /// pull takes it out. That is what clears leftovers from an older layout, where a buggy build
+    /// could write a mod a level too deep.
+    #[test]
+    fn files_the_pack_never_had_are_deleted() {
+        let base = tree(&[("kept.lua", "x")]);
+        let ours = tree(&[("kept.lua", "x"), ("Ducks Mods/leftover.lua", "old")]);
+        let theirs = tree(&[("kept.lua", "x")]);
+
+        let plan = plan(Some(&base), &ours, &theirs);
+
+        assert_eq!(plan.deletes, vec!["Ducks Mods/leftover.lua".to_owned()]);
+        assert!(plan.writes.is_empty());
     }
 
     #[test]
