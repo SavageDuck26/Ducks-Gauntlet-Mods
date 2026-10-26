@@ -36,10 +36,10 @@
 - It would be a nice optimization for melee heroes if Lich balls only appeared when the ghost summon cast is completed.
 - Culling system fix for Knossos and Alliances, too many bosses/lag. (Partly implemented, needs testing and maybe updates.)
 - Increase Eye Boss threat range.
-- When a player dies, revive them as Lazy for the next floor only, or revive them as Lazy forever.
-- When a player loots any gold on this floor he instand became lazy for this floor.
 - Players able to swap in game between all 3 potion abilities.
 - Fifth Player.
+- When a player dies, revive them as Lazy for the next floor only, or revive them as Lazy forever.
+- When a player loots any gold on this floor he instand became lazy for this floor.
 - Add more death bosses.
 
 ## Outside Modding: 
