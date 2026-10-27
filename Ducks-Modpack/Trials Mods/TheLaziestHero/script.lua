@@ -1,6 +1,6 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.3.3"
+local MOD_VERSION = "1.3.4"
 local MOD_DESCRIPTION = "Trials. Disables most inputs when not wearing the crown for the player with the mod."
 
 
@@ -75,6 +75,27 @@ LazyHeroes.is_carrying = function(unit)
     return carrier_state ~= nil and carrier_state.carry_state == "carrying"
 end
 
+
+local function blocked_value(value)
+    local value_type = type(value)
+
+    if value_type == "boolean" then
+        return false
+    end
+
+    if value_type == "number" then
+        return 0
+    end
+
+    if (value_type == "table" or value_type == "userdata")
+        and value.x ~= nil and value.y ~= nil and value.z ~= nil
+        and Vector3 and Vector3.zero then
+        return Vector3.zero()
+    end
+
+    return value
+end
+
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
@@ -118,12 +139,12 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                         local light_key = avatar_type and (avatar_type .. "_light")
                         local heavy_key = avatar_type and (avatar_type .. "_heavy")
 
-                        for key in pairs(input_data) do
+                        for key, value in pairs(input_data) do
                             if not LazyHeroes.allowed_inputs[key] then
                                 local is_throw_input = carrying and (key == "throw_carryable" or key == light_key or key == heavy_key)
 
                                 if not is_throw_input then
-                                    input_data[key] = nil
+                                    input_data[key] = blocked_value(value)
                                 end
                             end
                         end

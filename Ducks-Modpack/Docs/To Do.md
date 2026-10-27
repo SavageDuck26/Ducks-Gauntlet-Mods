@@ -14,16 +14,10 @@
 *Bug:* Enemy ignore bug: Sometimes enemies ignore certain players. Happens when using Doppelgangers, if a player is the “second doppelganger” they become invisible to the host. \
 *Proposed Fix:* Overhaul entire system, too many bugs present. Assign unique IDs?
 
-*Bug:* New Chaos Mode causes issues for players with low-performance PCs. \
-*Proposed Fix:* Find a way to lower CPU usage. 
-
 *Bug:* RandomHero duplicates all potions and keys for non-host players when changing floors. \
 *Proposed Fix:* Force it to only run locally?
 
 *Bug:* RandomHero sometimes does not drop other players on floor change. Doppelgangers fixes this. \
-*Proposed Fix:* N/A
-
-*Bug:* TheLaziestHero and Curse Trial can crash for non-host players. \
 *Proposed Fix:* N/A
 
 *Bug:* Knossos with extra rooms can lock players behind key doors if it's the first room encountered.  \
@@ -32,9 +26,8 @@
 *Bug:* Fire Bomber explosion visuals do not appear. \
 *Proposed Fix:* N/A
 
-## Mod Suggestions (by priority):
+## Mod Suggestions (no order):
 - It would be a nice optimization for melee heroes if Lich balls only appeared when the ghost summon cast is completed.
-- Culling system fix for Knossos and Alliances, too many bosses/lag. (Partly implemented, needs testing and maybe updates.)
 - Increase Eye Boss threat range.
 - Players able to swap in game between all 3 potion abilities.
 - Fifth Player.
