@@ -29,13 +29,22 @@ Doppelgangers.loaded = true
 -- Erring towards "host" is safe here: every hook this gates lives on GameServer, which a client
 -- never instantiates, so a stale true on a client cannot run anything.
 Doppelgangers.is_host = function()
-    local state_game = _G.FlowCallbacks and FlowCallbacks.state_game
-
-    if state_game and (state_game.is_server == true or state_game.game_server ~= nil) then
+    -- AddUtility owns the answer: _G.is_host_ducks_mods is defined at load and refreshed from the
+    -- lobby by _G.check_host_ducks_mods.
+    if _G.is_host_ducks_mods == true then
         return true
     end
 
-    return _G.is_host_ducks_mods == true
+    -- Secondary signal, and only when FlowCallbacks really holds a state game. In the retail build
+    -- FlowCallbacks is the table of FLOW CALLBACKS, so state_game is a function outside a game state
+    -- and indexing it raises "attempt to index a function value" -- that type check is what keeps
+    -- this from crashing in the lobby. StateGame replaces it with itself once a game is running
+    -- (state_game.lua:155), and that is the case worth honouring here: AddUtility's flag can freeze
+    -- false on the real host after the lobby closes.
+    local state_game = _G.FlowCallbacks and FlowCallbacks.state_game
+
+    return type(state_game) == "table"
+        and (state_game.is_server == true or state_game.game_server ~= nil)
 end
 
 -- print("[" .. MOD_NAME .. "] Making a few doubles, doubles, doubles, doubles...")

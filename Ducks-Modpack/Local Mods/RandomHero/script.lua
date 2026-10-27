@@ -208,23 +208,34 @@ local function duplicates_allowed()
     return doppelgangers ~= nil and doppelgangers.loaded == true
 end
 
--- Which heroes this player may switch to.
---
--- The engine's own list comes from the HOST: GameClient.on_party_changed strips the heroes the party
--- is already using before calling set_available_heroes, and the host's drop-in gate
--- (PartyLeadManager.is_avatar_type_in_use) is what built it. Picking from that list therefore cannot
--- be refused by a host that does not run this mod -- and when the host DOES run Doppelgangers, the
--- list is the whole roster, so duplicates stay possible exactly where they are allowed.
---
--- The local recomputation below is the fallback for when the engine has not published a list (or
--- published an empty one, which is the five-heroes-five-players case).
+-- A hero this roll must not consider: the player's own current hero (no pointless re-pick), or one
+-- the host has already refused for this switch.
 local function is_excluded(avatar, current_avatar, excluded)
     return avatar == current_avatar or (excluded ~= nil and excluded[avatar] == true)
 end
 
+-- Which heroes this player may switch to.
+--
+-- DOPPELGANGERS FIRST. That mod exists so two players may share a hero: it relaxes the host's
+-- drop-in gate (PartyLeadManager.is_avatar_type_in_use -> false) and hands every board the whole
+-- roster through set_available_heroes. So when it is loaded -- read with rawget, because strict.lua
+-- errors on an undeclared global -- the roll may land on a hero somebody is already using. Anything
+-- else would quietly undo the mod that was loaded to make that legal.
+--
+-- Without it, the engine's own list is the host's rule: GameClient.on_party_changed strips the heroes
+-- the party is using before calling set_available_heroes, so a roll from that list cannot be refused.
+--
+-- The local recomputation is the fallback for when the engine has not published a list (or published
+-- an empty one, which is the five-heroes-five-players case).
 local function get_random_avatar(game_client, current_avatar, excluded)
     local available = {}
-    local engine_list = game_client and game_client.available_heroes
+    local engine_list = nil
+
+    if duplicates_allowed() then
+        engine_list = AvatarSettings.avatars
+    else
+        engine_list = game_client and game_client.available_heroes
+    end
 
     if type(engine_list) == "table" then
         for _, avatar in ipairs(engine_list) do
