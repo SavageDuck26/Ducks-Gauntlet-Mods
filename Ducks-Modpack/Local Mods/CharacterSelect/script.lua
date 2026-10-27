@@ -1,11 +1,6 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.1
--- Purpose: Allows you to switch characters in game.
--- =================================================================================================
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.1.0"
+local MOD_VERSION = "1.1.1"
 local MOD_DESCRIPTION = "Allows you to switch characters in game."
 
 
