@@ -172,6 +172,10 @@ end
 local function set_on_death_result_to_drop_grid(result, drop_spec, chance, max_i, max_j, spacing)
     if not result then return end
 
+    if not _G.is_host_ducks_mods then
+        return result
+    end    
+
     local drop
     local actual_chance
     if type(drop_spec) == "string" then
@@ -212,6 +216,10 @@ end
 
 local function set_on_death_result_to_drop(result, drop_spec, chance)
     if not result then return end
+
+    if not _G.is_host_ducks_mods then
+        return result
+    end    
 
     local drop
     local actual_chance
