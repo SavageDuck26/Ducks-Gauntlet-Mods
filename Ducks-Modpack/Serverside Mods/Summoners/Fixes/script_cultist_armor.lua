@@ -58,8 +58,12 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 return
             end
 
+            -- A client interacting with the corpse migrates it to itself (the corpse is
+            -- `require_migration`, interactable_component.lua:352) and migrating away drops this peer's
+            -- master contexts (entity_manager.lua:254) while the unit stays alive as a prediction, so
+            -- "alive" is not enough: `call_master` indexes the master context and throws without it.
             AddUtility.delay_action(CORPSE_RETIRE_DELAY, function ()
-                if Unit.alive(unit) then
+                if Unit.alive(unit) and EntityAux.has_component_master(unit, "enemy") then
                     EntityAux.call_master(unit, "enemy", "decay")
                 end
             end)
