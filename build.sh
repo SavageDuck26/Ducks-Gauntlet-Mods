@@ -21,11 +21,4 @@ copy_into() {
 copy_into "$crate/target/release/$name" DucksModManager-linux-x86_64
 copy_into "$crate/target/$windows_target/release/$name.exe" DucksModManager-windows-x86_64.exe
 
-pack_zip=DucksFullModpack.zip
-pack_src=Ducks-Modpack
-
-rm -f "dist/$pack_zip"
-
-(cd "$pack_src" && zip -r -q "../dist/$pack_zip" ./*)
-
 ls -l dist

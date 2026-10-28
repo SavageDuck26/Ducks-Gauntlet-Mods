@@ -271,7 +271,7 @@ impl ModManagerApp {
             confirm_delete: None,
             doc: None,
         };
-        app.info("Ducks Mod Manager 0.1.");
+        app.info("Ducks Mod Manager 1.0.0");
         app.info(format!("Pack: {REPO_URL} ({DEFAULT_BRANCH})"));
         app.info(format!(
             "Settings and savestates are kept in {APPDATA_DIR} beside the mods folder."
