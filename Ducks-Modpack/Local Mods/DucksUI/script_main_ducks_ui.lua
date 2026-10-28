@@ -649,173 +649,18 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
     return result
 end, MOD_NAME .. ".require", MOD_NAME)
 
-local function encode_json(obj)
-    local function encode_value(val)
-        local val_type = type(val)
-        if val_type == "string" then
-            return '"' .. val:gsub('\\', '\\\\'):gsub('"', '\\"') .. '"'
-        elseif val_type == "number" then
-            return tostring(val)
-        elseif val_type == "boolean" then
-            return tostring(val)
-        elseif val_type == "table" then
-            local result = {}
-            local is_array = true
-            for k, v in pairs(val) do
-                if type(k) ~= "number" then
-                    is_array = false
-                    break
-                end
-            end
-            
-            if is_array then
-                for i, v in ipairs(val) do
-                    table.insert(result, encode_value(v))
-                end
-                return "[" .. table.concat(result, ",") .. "]"
-            else
-                for k, v in pairs(val) do
-                    table.insert(result, '"' .. tostring(k) .. '":' .. encode_value(v))
-                end
-                return "{" .. table.concat(result, ",") .. "}"
-            end
-        else
-            return "null"
-        end
-    end
-    return encode_value(obj)
-end
-
-local function decode_json(str)
-    local function decode_value(s, pos)
-        local first = s:sub(pos, pos)
-        if first == '"' then
-            local end_pos = pos + 1
-            while end_pos <= #s do
-                local char = s:sub(end_pos, end_pos)
-                if char == '"' and s:sub(end_pos - 1, end_pos - 1) ~= '\\' then
-                    break
-                end
-                end_pos = end_pos + 1
-            end
-            return s:sub(pos + 1, end_pos - 1):gsub('\\"', '"'):gsub('\\\\', '\\'), end_pos + 1
-        elseif first == '{' then
-            local obj = {}
-            pos = pos + 1
-            while pos <= #s and s:sub(pos, pos):match("%s") do pos = pos + 1 end
-            if s:sub(pos, pos) == '}' then return obj, pos + 1 end
-            
-            while true do
-                while pos <= #s and s:sub(pos, pos):match("%s") do pos = pos + 1 end
-                local key, new_pos = decode_value(s, pos)
-                pos = new_pos
-                while pos <= #s and s:sub(pos, pos):match("%s") do pos = pos + 1 end
-                if s:sub(pos, pos) == ':' then pos = pos + 1 end
-                while pos <= #s and s:sub(pos, pos):match("%s") do pos = pos + 1 end
-                local value
-                value, pos = decode_value(s, pos)
-                obj[key] = value
-                while pos <= #s and s:sub(pos, pos):match("%s") do pos = pos + 1 end
-                if s:sub(pos, pos) == '}' then return obj, pos + 1 end
-                if s:sub(pos, pos) == ',' then pos = pos + 1 end
-            end
-        elseif first == '[' then
-            local arr = {}
-            pos = pos + 1
-            while pos <= #s and s:sub(pos, pos):match("%s") do pos = pos + 1 end
-            if s:sub(pos, pos) == ']' then return arr, pos + 1 end
-            
-            while true do
-                while pos <= #s and s:sub(pos, pos):match("%s") do pos = pos + 1 end
-                local value
-                value, pos = decode_value(s, pos)
-                table.insert(arr, value)
-                while pos <= #s and s:sub(pos, pos):match("%s") do pos = pos + 1 end
-                if s:sub(pos, pos) == ']' then return arr, pos + 1 end
-                if s:sub(pos, pos) == ',' then pos = pos + 1 end
-            end
-        elseif s:sub(pos, pos + 3) == "true" then
-            return true, pos + 4
-        elseif s:sub(pos, pos + 4) == "false" then
-            return false, pos + 5
-        elseif s:sub(pos, pos + 3) == "null" then
-            return nil, pos + 4
-        else
-            local num_end = pos
-            while num_end <= #s and s:sub(num_end, num_end):match("[%d%.%-]") do
-                num_end = num_end + 1
-            end
-            return tonumber(s:sub(pos, num_end - 1)), num_end
-        end
-    end
-    
-    if str and str ~= "" then
-        local result, _ = decode_value(str, 1)
-        return result
-    end
-    return {}
-end
-
--- prettify a compact JSON string by adding indentation and newlines
-local function pretty_json(str)
-    local indent = 0
-    local in_string = false
-    local result = ""
-    for i = 1, #str do
-        local c = str:sub(i, i)
-        if c == '"' and str:sub(i - 1, i - 1) ~= '\\' then
-            in_string = not in_string
-            result = result .. c
-        elseif not in_string then
-            if c == '{' or c == '[' then
-                indent = indent + 1
-                result = result .. c .. "\n" .. string.rep("  ", indent)
-            elseif c == '}' or c == ']' then
-                indent = indent - 1
-                result = result .. "\n" .. string.rep("  ", indent) .. c
-            elseif c == ',' then
-                result = result .. c .. "\n" .. string.rep("  ", indent)
-            elseif c == ':' then
-                result = result .. c .. " "
-            else
-                result = result .. c
-            end
-        else
-            result = result .. c
-        end
-    end
-    return result
-end
-
--- Get a writable settings file path
--- Uses the same path as the mod framework (mods/settings/) which is
--- set by the C++ loader's DLL_MOD_DIRECTORY_PATH — guaranteed writable
--- and consistent across all platforms (Linux/Wine, Windows native)
-local _cached_settings_path = nil
-local function get_settings_file_path()
-    if _cached_settings_path then
-        return _cached_settings_path
-    end
-    
-    local filename = "ducks_ui_mod_settings.json"
-    
-    -- Primary path: use the C++-provided mods directory (same as framework)
+-- Path of the settings file the shared framework persists mod settings into.
+-- moddata.save_mod_settings_to_file writes <mods root>/settings/mod_settings.json, and
+-- DucksUI keeps its data under the "DucksUI" key of that file. There is no separate
+-- per-mod settings file.
+local function settings_file_path()
     local mods_dir = rawget(_G, "DLL_MOD_DIRECTORY_PATH")
     if mods_dir then
-        local settings_dir = mods_dir .. "/settings"
-            -- The loader already creates this settings directory (mods.json lives
-        -- in the settings folder next to the game's mods root).
-        local primary_path = settings_dir .. "/" .. filename
-        _cached_settings_path = primary_path
-        print("[DucksUI] Using settings path: " .. primary_path)
-        return primary_path
+        return mods_dir .. "/settings/mod_settings.json"
     end
-
-    -- No mods-root path available: fall back to a bare file name.
-    _cached_settings_path = filename
-    print("[DucksUI] Warning: Could not resolve settings path, using: " .. filename)
-    return _cached_settings_path
+    return "<mods root>/settings/mod_settings.json"
 end
+
 
 -- Helper function to round floats to hundredths place
 local function round_floats(obj)
@@ -889,8 +734,6 @@ local function save_all_ui_player_settings()
     settings = round_floats(settings)
     
     -- Persist through the shared framework settings store (mod_settings.json).
-    local json_file_path = get_settings_file_path()
-
     local mod_settings = _G.Mod_settings
     if type(mod_settings) ~= "table" then
         mod_settings = {}
@@ -908,7 +751,7 @@ local function save_all_ui_player_settings()
     end
 
     if saved_ok then
-        print("[DucksUI] Settings saved successfully to: " .. json_file_path)
+        print("[DucksUI] Settings saved successfully to: " .. settings_file_path())
     else
         print("[DucksUI] Error saving settings (framework settings store unavailable).")
         return nil
@@ -917,8 +760,6 @@ local function save_all_ui_player_settings()
 end
 
 local function import_all_ui_player_settings()
-    local json_file_path = get_settings_file_path()
-
     local mod_settings = _G.Mod_settings
     if type(mod_settings) ~= "table" then
         mod_settings = {}
@@ -935,7 +776,7 @@ local function import_all_ui_player_settings()
         return
     end
 
-    print("[DucksUI] Loading settings from: " .. json_file_path)
+    print("[DucksUI] Loading settings from: " .. settings_file_path())
 
     -- Apply CONFIG from settings to every registered mod that exists
     -- Uses deep_merge so that missing nested tables keep their defaults
@@ -965,19 +806,10 @@ local function import_all_ui_player_settings()
     print("[DucksUI] Settings loaded successfully")
 end
 
--- Migration helper: Try to find settings from the old location and migrate them
-local function migrate_old_settings()
-    -- No-op under the new framework: settings are persisted by moddata into
-    -- mod_settings.json, so no legacy file migration is needed.
-end
-
--- Run migration on load
-pcall(migrate_old_settings)
-
 -- Export functions on DucksUI namespace
 DucksUI.save_all_settings = save_all_ui_player_settings
 DucksUI.import_all_settings = import_all_ui_player_settings
-DucksUI.get_settings_path = get_settings_file_path
+DucksUI.get_settings_path = settings_file_path
 
 -- Also keep legacy global exports for backwards compatibility
 rawset(_G, "save_all_ui_player_settings", save_all_ui_player_settings)

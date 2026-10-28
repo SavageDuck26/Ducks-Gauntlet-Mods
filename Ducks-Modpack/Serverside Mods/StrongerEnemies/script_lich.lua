@@ -3,12 +3,14 @@ local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Adds new abilities to the Lich"
 local MOD_NAME, log_message = Mods.init_mod()
 
--- Chance the Lich throws a storm bomb on top of a cast; overridable from the mod UI.
+-- Chance the Lich tops a nightmare cast with a storm bomb, and its normal-mode ghost cast.
+-- Overridable from the mod UI.
 local function storm_bomb_chance()
     return StrongerEnemies.get_chance("lich", "storm_bomb_chance", 0.12)
 end
 
--- Chance the Lich drops a storm bomb when it dives in (normal mode, not nightmare).
+-- Chance the Lich drops a storm bomb when it dives in. Nightmare only: the ghost cast carries the
+-- normal-mode bomb instead (see ghost_swarm at the bottom of this file).
 local function shadowdive_bomb_chance()
     return StrongerEnemies.get_chance("lich", "shadowdive_bomb_chance", 1.00)
 end
@@ -206,6 +208,10 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                     end
 
                     if StrongerEnemies.is_enabled("lich") and math.random() < shadowdive_bomb_chance() then
+                        if not StrongerEnemies.is_nightmare() then
+                            return
+                        end
+
                         local caster_unit = event.caster_unit
                         
                         -- Multiplayer safety: validate caster exists and is alive
@@ -242,7 +248,8 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                     return
                 end
 
-                if not StrongerEnemies.is_nightmare() then
+                -- Normal mode only: the ghost cast carries the bomb here, nightmare's went to the dive.
+                if StrongerEnemies.is_nightmare() then
                     return
                 end
 

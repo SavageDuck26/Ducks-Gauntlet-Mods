@@ -19,8 +19,8 @@ local ENEMY_DATA = {
         id = "lich",
         name = "Lich",
         settings = {
-            { key = "shadowdive_bomb_chance", label = "Shadowdive Bomb", default = 1.00 },
-            { key = "storm_bomb_chance", label = "Storm Bomb", default = 0.12, nightmare = true },
+            { key = "shadowdive_bomb_chance", label = "Shadowdive Bomb", default = 1.00, nightmare = true },
+            { key = "storm_bomb_chance", label = "Storm Bomb", default = 0.12 },
         },
     },
     {
