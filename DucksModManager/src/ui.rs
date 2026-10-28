@@ -57,6 +57,11 @@ const BUTTON_HEIGHT: f32 = 22.0;
 /// Wide enough for a savestate's name in the restore dropdown.
 const PICK_WIDTH: f32 = 150.0;
 
+/// The panel on the right, where the pack's own documentation is shown. Wide enough for the prose
+/// to be readable, and narrow enough that the mod list's columns still fit beside it at the default
+/// window size. Draggable either way.
+const DOCS_WIDTH: f32 = 400.0;
+
 /// Shared status colours, so the update badge and the list pills can never drift apart.
 const OK_COLOR: Color32 = Color32::from_rgb(96, 190, 116);
 const WARN_COLOR: Color32 = Color32::from_rgb(226, 178, 84);
@@ -195,13 +200,19 @@ enum Action {
     Browse,
     OpenFolder,
     OpenRepo,
+    OpenDocs,
     CheckUpdates,
     PullUpdate,
     InstallSelected,
     MakeSavestate,
+    /// Rewrite the chosen savestate with the mods that are installed right now.
+    OverwriteState,
     RestoreState,
     InstallRow(usize),
+    /// A row's Delete button. A mod the pack needs only asks for confirmation here.
     DeleteRow(usize),
+    /// Deleting a mod the pack needs, once the player has said yes.
+    ForceDeleteRow(usize),
     SetRow(usize, bool),
     SelectAll,
     SelectNone,
@@ -225,6 +236,12 @@ pub struct ModManagerApp {
     savestates: Vec<saver::Savestate>,
     /// Which of them the dropdown has picked.
     restore_choice: String,
+    /// The mod a delete is waiting on a yes/no for. Only a mod the pack needs ever asks, so this is
+    /// `None` for every ordinary delete.
+    confirm_delete: Option<usize>,
+    /// The pack's own documentation, as of the last time the pack copy was read. Held here because
+    /// the panel is drawn every frame and the file comes off disk.
+    doc: Option<String>,
 }
 
 impl ModManagerApp {
@@ -251,6 +268,8 @@ impl ModManagerApp {
             savestate_name: String::new(),
             savestates: Vec::new(),
             restore_choice: String::new(),
+            confirm_delete: None,
+            doc: None,
         };
         app.info("Ducks Mod Manager 0.1.");
         app.info(format!("Pack: {REPO_URL} ({DEFAULT_BRANCH})"));
@@ -486,13 +505,16 @@ impl ModManagerApp {
                     self.warn(format!("Could not open the browser: {err}"));
                 }
             }
+            Action::OpenDocs => self.open_docs(),
             Action::CheckUpdates => self.check_updates(),
             Action::PullUpdate => self.pull_update(),
             Action::InstallSelected => self.install_selected(),
             Action::MakeSavestate => self.make_savestate(),
+            Action::OverwriteState => self.overwrite_savestate(),
             Action::RestoreState => self.restore_savestate(),
             Action::InstallRow(index) => self.install_one(index),
-            Action::DeleteRow(index) => self.delete_one(index),
+            Action::DeleteRow(index) => self.ask_to_delete(index),
+            Action::ForceDeleteRow(index) => self.delete_one(index),
             Action::SetRow(index, selected) => {
                 if let Some(entry) = self.mods.get_mut(index) {
                     // AddUtility is mandatory: the pack does not run without it.
@@ -625,8 +647,18 @@ impl ModManagerApp {
             }
         }
 
-        // The mods folder is what tells us where the savestates live.
+        // The mods folder is what tells us where the savestates live, and where the pack copy —
+        // and so the pack's own documentation — is.
         self.refresh_savestates();
+        self.refresh_doc();
+    }
+
+    /// Reads the pack's own documentation into memory for the panel on the right.
+    ///
+    /// It comes off the pack copy on disk, so this is called whenever that copy changes rather than
+    /// from the panel itself: the panel is redrawn every frame, and the file is not.
+    fn refresh_doc(&mut self) {
+        self.doc = self.pack_dir().and_then(|dir| pack::read_doc(&dir));
     }
 
     /// Re-reads the savestates and keeps the dropdown pointing at something that exists.
@@ -685,6 +717,27 @@ impl ModManagerApp {
         }
     }
 
+    /// Where the pack keeps its documentation, once a pack copy is on disk.
+    fn doc_path(&self) -> Option<PathBuf> {
+        Some(pack::doc_path(&self.pack_dir()?))
+    }
+
+    /// Opens the folder the pack keeps its documentation in, so the other `.md` files beside the
+    /// one on screen are a click away.
+    fn open_docs(&mut self) {
+        let Some(dir) = self
+            .doc_path()
+            .and_then(|path| path.parent().map(Path::to_path_buf))
+        else {
+            self.warn("Pick the mods folder first.");
+            return;
+        };
+
+        if let Err(err) = open_path(&dir) {
+            self.warn(format!("Could not open {}: {err}", dir.display()));
+        }
+    }
+
     /// Downloads the pack if it has changed, then works out what that means for the installed mods.
     /// The fetch is a plain HTTPS download of GitHub's archive — no git, no API, no token.
     fn check_updates(&mut self) {
@@ -708,8 +761,10 @@ impl ModManagerApp {
             }
         }
 
-        // Rebuild the list, so the statuses reflect the pack that was just fetched.
+        // Rebuild the list, so the statuses reflect the pack that was just fetched. The pack's docs
+        // came down with it, so the panel on the right is re-read too.
         self.refresh_mods(&pack_dir);
+        self.refresh_doc();
         self.settle_update_state(&pack_dir);
     }
 
@@ -765,8 +820,10 @@ impl ModManagerApp {
         }
 
         // The list has to be rebuilt against the pack that was just fetched before anything is
-        // written to the mods folder.
+        // written to the mods folder. The docs came down with the pack, so they are re-read here as
+        // well — a pull on its own can be the first fetch after an update.
         self.refresh_mods(&pack_dir);
+        self.refresh_doc();
 
         // 3. Bring the installed mods along. Only the ones already installed: a pull refreshes what
         //    is there, and installing something new stays an explicit choice.
@@ -848,12 +905,7 @@ impl ModManagerApp {
             return;
         };
 
-        let Some(stamp) = self
-            .savestates
-            .iter()
-            .find(|state| state.stamp == self.restore_choice)
-            .map(|state| state.stamp.clone())
-        else {
+        let Some(stamp) = self.chosen_savestate() else {
             self.warn("There is no savestate to restore — take one first.");
             return;
         };
@@ -867,6 +919,50 @@ impl ModManagerApp {
             }
             Err(err) => self.warn(format!("Could not restore {stamp}: {err}")),
         }
+    }
+
+    /// Bring the chosen savestate up to date with the mods that are installed right now.
+    ///
+    /// The name in the dropdown says which savestate this is about, so it is rewritten in place
+    /// rather than added as another one — that is the difference between this and *Make savestate*,
+    /// which never overwrites anything. Nothing here can be undone: what the savestate held is gone
+    /// once it returns, which is why the log says so out loud.
+    fn overwrite_savestate(&mut self) {
+        let (Some(root), Some(destination)) = (self.savestate_root(), self.destination()) else {
+            self.warn("Pick the mods folder first.");
+            return;
+        };
+        if !destination.is_dir() {
+            self.warn(format!(
+                "There is nothing to overwrite it with: {} does not exist yet.",
+                destination.display()
+            ));
+            return;
+        }
+
+        let Some(stamp) = self.chosen_savestate() else {
+            self.warn("There is no savestate to overwrite — take one first.");
+            return;
+        };
+
+        match saver::overwrite(&root, &stamp, &destination, "overwritten by hand") {
+            Ok(()) => {
+                self.warn(format!(
+                    "Savestate {stamp} was replaced with the installed mods. What it held before \
+                     is gone."
+                ));
+                self.refresh_savestates();
+            }
+            Err(err) => self.warn(format!("Could not overwrite {stamp}: {err}")),
+        }
+    }
+
+    /// The savestate the dropdown has picked, as long as it is still on disk.
+    fn chosen_savestate(&self) -> Option<String> {
+        self.savestates
+            .iter()
+            .find(|state| state.stamp == self.restore_choice)
+            .map(|state| state.stamp.clone())
     }
 
     /// Installs the ticked mods from the pack.
@@ -914,6 +1010,9 @@ impl ModManagerApp {
     }
 
     /// Delete one mod's folder from the mods folder, straight from its row button.
+    ///
+    /// A mod the pack needs goes through [`ask_to_delete`](Self::ask_to_delete) first, so reaching
+    /// here means the player has already been told what deleting it costs.
     fn delete_one(&mut self, index: usize) {
         let Some(destination) = self.destination() else {
             self.warn("Pick the mods folder first.");
@@ -926,14 +1025,18 @@ impl ModManagerApp {
         let name = entry.name.clone();
         let status = entry.status;
         let required = entry.required;
-        let target = destination.join(&entry.category).join(&entry.name);
+        // `rel` is the path the install uses, and a mod that *is* its own top-level folder —
+        // `AddUtility(REQUIRED_FOR_MODS)`, `Trials Mods` — is that folder. Joining category and
+        // name would look for `AddUtility(REQUIRED_FOR_MODS)/AddUtility(REQUIRED_FOR_MODS)`, which
+        // is why deleting the required mod never worked.
         let rel = rel_path(entry);
+        let target = destination.join(&rel);
 
         if required {
             self.warn(format!(
-                "{name} is required — the pack does not run without it, so it is not deleted on its own."
+                "{name} is required — the pack's other mods call into it. Deleting it anyway; \
+                 install it again as soon as you can."
             ));
-            return;
         }
         if !status.is_installed() {
             self.info(format!("{name} is not installed, so there is nothing to delete."));
@@ -954,8 +1057,26 @@ impl ModManagerApp {
         let entry = &mut self.mods[index];
         entry.status = Status::NotInstalled;
         entry.changed_files = 0;
-        // Nothing on disk any more, so the row drops back to the unticked default.
-        entry.selected = false;
+        // Nothing on disk any more, so the row drops back to the unticked default — except for a
+        // required mod, which stays ticked so the next install puts it back.
+        entry.selected = required;
+    }
+
+    /// A row's Delete button: a mod the pack needs asks first, everything else just goes.
+    ///
+    /// `AddUtility` can be deleted — there are reasons to want it gone, a mod conflict being the
+    /// obvious one — but the other mods are written against it, so it never goes on one click.
+    fn ask_to_delete(&mut self, index: usize) {
+        let required = self
+            .mods
+            .get(index)
+            .is_some_and(|entry| entry.required && entry.status.is_installed());
+
+        if required {
+            self.confirm_delete = Some(index);
+        } else {
+            self.delete_one(index);
+        }
     }
 
     /// Top bar: where the pack comes from, where it is written, and the state of the last check.
@@ -1047,7 +1168,7 @@ impl ModManagerApp {
                     *action = Some(Action::RestoreState);
                 }
 
-                // Which savestate the button puts back.
+                // Which savestate Restore puts back, and which one Overwrite rewrites.
                 let states = &self.savestates;
                 let choice = &mut self.restore_choice;
                 ui.add_enabled_ui(can_restore, |ui| {
@@ -1065,6 +1186,28 @@ impl ModManagerApp {
                             }
                         });
                 });
+
+                // Overwrite the savestate the dropdown has picked with what is installed now. It
+                // needs the same two things restoring does: a folder to read, and a savestate to
+                // rewrite.
+                let can_overwrite =
+                    can_restore && self.destination().is_some_and(|path| path.is_dir());
+                let overwrite = ui
+                    .add_enabled_ui(can_overwrite, |ui| {
+                        ui.add_sized(
+                            [BUTTON_NARROW, BUTTON_HEIGHT],
+                            egui::Button::new("Overwrite"),
+                        )
+                    })
+                    .inner
+                    .on_hover_text(
+                        "Replaces the savestate chosen on its right with the mods that are \
+                         installed right now, keeping its name. What that savestate held is gone \
+                         for good — Make savestate is the one that never overwrites anything.",
+                    );
+                if overwrite.clicked() {
+                    *action = Some(Action::OverwriteState);
+                }
 
                 let can_savestate = self.settings.mods_root.is_some()
                     && self.destination().is_some_and(|path| path.is_dir());
@@ -1294,10 +1437,11 @@ impl ModManagerApp {
         };
         ui.add_sized([COL_CHANGED, ROW_HEIGHT], egui::Label::new(changed));
 
-        // Per-row actions. Deleting is meaningless for a mod that is not on disk, and the pack does
-        // not run without AddUtility, so those buttons grey out instead of disappearing.
+        // Per-row actions. Deleting is meaningless for a mod that is not on disk, so that button
+        // greys out rather than disappearing. The required mod can be deleted like any other — it
+        // just asks for confirmation first, which is why its button stays live.
         let can_install = self.settings.mods_root.is_some();
-        let can_delete = entry.status.is_installed() && !entry.required;
+        let can_delete = entry.status.is_installed();
         ui.allocate_ui_with_layout(
             egui::vec2(COL_ACTIONS, ROW_HEIGHT),
             Layout::left_to_right(Align::Center),
@@ -1308,10 +1452,16 @@ impl ModManagerApp {
                 {
                     *action = Some(Action::InstallRow(index));
                 }
-                if ui
-                    .add_enabled(can_delete, egui::Button::new("Delete").small())
-                    .clicked()
-                {
+                let delete = ui.add_enabled(can_delete, egui::Button::new("Delete").small());
+                let delete = if entry.required {
+                    delete.on_hover_text(
+                        "AddUtility is called into by the pack's other mods, so deleting it asks \
+                         for confirmation first. The next install puts it back.",
+                    )
+                } else {
+                    delete
+                };
+                if delete.clicked() {
                     *action = Some(Action::DeleteRow(index));
                 }
             },
@@ -1370,6 +1520,123 @@ impl ModManagerApp {
                 }
             });
     }
+
+    /// The panel on the right: the pack's own documentation, out of the pack copy.
+    ///
+    /// This is the space the mod list never used. The text is whatever the pack shipped — the same
+    /// file a player reads on GitHub — so what is on screen always matches the pack that was
+    /// fetched. It is read when the pack changes rather than here, because this runs every frame.
+    fn docs_panel(&self, ui: &mut egui::Ui, action: &mut Option<Action>) {
+        ui.add_space(4.0);
+        ui.horizontal(|ui| {
+            ui.strong("Modpack Documentation");
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                let on_disk = self.doc_path().is_some_and(|path| path.is_file());
+                let open = ui
+                    .add_enabled(on_disk, egui::Button::new("Open Docs folder"))
+                    .on_hover_text("Opens the pack's own Docs folder, with the rest of its files.");
+                if open.clicked() {
+                    *action = Some(Action::OpenDocs);
+                }
+            });
+        });
+        ui.label(
+            RichText::new(format!("{}/{}", pack::DOCS_DIR, pack::DOC_FILE))
+                .weak()
+                .size(11.0),
+        );
+        ui.separator();
+
+        let Some(text) = self.doc.as_deref() else {
+            ui.add_space(6.0);
+            ui.label(
+                RichText::new(
+                    "No documentation on disk yet — Check for updates fetches the pack, and its \
+                     documentation comes with it.",
+                )
+                .color(WARN_COLOR),
+            );
+            return;
+        };
+
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                for line in doc_lines(text) {
+                    doc_line(ui, &line);
+                }
+            });
+    }
+
+    /// Asks before deleting a mod the pack is built around.
+    ///
+    /// Everything else deletes on one click; this is the one delete that can break mods that are
+    /// still installed, so it is the one that stops and asks. The window only ever offers the two
+    /// answers: `ForceDeleteRow` goes ahead, anything else — Cancel, the close box, Escape — leaves
+    /// the mod alone.
+    fn confirm_delete_window(&mut self, ctx: &egui::Context, action: &mut Option<Action>) {
+        let Some(index) = self.confirm_delete else {
+            return;
+        };
+        let Some(entry) = self.mods.get(index) else {
+            self.confirm_delete = None;
+            return;
+        };
+
+        let name = entry.name.clone();
+        let category = entry.category.clone();
+        let mut answer: Option<bool> = None;
+        let mut open = true;
+
+        egui::Window::new("Delete a mod the pack needs?")
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+            .open(&mut open)
+            .show(ctx, |ui| {
+                ui.label(format!(
+                    "{name} ({category}) is the mod the pack is built around: other mods call into \
+                     it for host checks and shared fixes."
+                ));
+                ui.add_space(4.0);
+                ui.colored_label(
+                    WARN_COLOR,
+                    "Deleting it can break those mods while it is gone. The folder is removed \
+                     outright — the next Install puts it back.",
+                );
+                ui.add_space(4.0);
+                ui.label(
+                    RichText::new("Take a savestate first if you want a way back.").weak(),
+                );
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    if ui.button("Delete it anyway").clicked() {
+                        answer = Some(true);
+                    }
+                    if ui.button("Cancel").clicked() {
+                        answer = Some(false);
+                    }
+                });
+            });
+
+        match answer {
+            Some(true) => {
+                self.confirm_delete = None;
+                *action = Some(Action::ForceDeleteRow(index));
+            }
+            Some(false) => {
+                self.confirm_delete = None;
+                self.info("Deletion cancelled.");
+            }
+            // Nothing was clicked: the close box counts as a no, and leaving the window up keeps
+            // the question on screen.
+            None if !open => {
+                self.confirm_delete = None;
+                self.info("Deletion cancelled.");
+            }
+            None => {}
+        }
+    }
 }
 
 impl eframe::App for ModManagerApp {
@@ -1385,7 +1652,18 @@ impl eframe::App for ModManagerApp {
             .resizable(true)
             .default_height(180.0)
             .show(ctx, |ui| self.log_panel(ui, &mut action));
+        // The pack's documentation fills the room the mod list leaves on the right. Draggable, so
+        // anyone who would rather have the list's columns back can have them.
+        egui::SidePanel::right("docs")
+            .resizable(true)
+            .default_width(DOCS_WIDTH)
+            .min_width(180.0)
+            .show(ctx, |ui| self.docs_panel(ui, &mut action));
         egui::CentralPanel::default().show(ctx, |ui| self.mod_table(ui, &mut action));
+
+        // The confirmation sits on top of everything else, and its answer is handled by the same
+        // match below — so a yes deletes on the click that said it.
+        self.confirm_delete_window(ctx, &mut action);
 
         if let Some(action) = action {
             self.handle(action);
@@ -1521,6 +1799,127 @@ fn open_with_os(target: &str) -> std::io::Result<()> {
     Ok(())
 }
 
+/// One line of the pack's documentation, with the little Markdown it uses read off.
+///
+/// There is no Markdown renderer in the build, and this one file is the only Markdown there is: the
+/// few shapes it actually writes — `**headings**`, `- bullets`, sub-bullets indented by a tab or
+/// four spaces, and the backslash Markdown puts at the end of a line — are handled here rather than
+/// pulled in as a dependency. Anything else is shown exactly as written.
+enum DocLine {
+    /// A blank line, kept so paragraphs stay apart.
+    Gap,
+    /// `**Like this:**`, and any text that followed it on the same line.
+    Heading { lead: String, rest: String },
+    /// `- ...`, at its indent level, with the `*Name:*` a bullet usually opens with split off.
+    Bullet {
+        depth: usize,
+        lead: Option<String>,
+        rest: String,
+    },
+    /// Anything else, as it was written.
+    Plain(String),
+}
+
+/// Reads the documentation's text into lines the panel knows how to draw.
+fn doc_lines(text: &str) -> Vec<DocLine> {
+    text.lines().map(parse_doc_line).collect()
+}
+
+/// Works out one line's shape. Every rule here is one the pack's own file relies on.
+fn parse_doc_line(line: &str) -> DocLine {
+    // A backslash at the end of a line is Markdown's "break here", which means nothing on screen.
+    let line = line.strip_suffix('\\').unwrap_or(line).trim_end();
+    if line.is_empty() {
+        return DocLine::Gap;
+    }
+
+    let indent: String = line
+        .chars()
+        .take_while(|letter| *letter == ' ' || *letter == '\t')
+        .collect();
+    // A tab is one level in, four spaces are one level in: the file uses both for sub-bullets.
+    let depth = indent.matches('\t').count() + indent.matches(' ').count() / 4;
+    let body = &line[indent.len()..];
+
+    if let Some(rest) = body.strip_prefix("- ") {
+        let (lead, rest) = doc_lead(rest.trim_start());
+        return DocLine::Bullet { depth, lead, rest };
+    }
+
+    if let Some((lead, rest)) = bold_lead(body) {
+        return DocLine::Heading { lead, rest };
+    }
+
+    // A line that opens with `*Name:*` but no dash is still a description — the file's AddUtility
+    // entry and its credits line are written that way — so it is drawn as a bullet too, which is
+    // what loses the asterisks.
+    if let (Some(lead), rest) = doc_lead(body)
+        && !lead.is_empty()
+    {
+        return DocLine::Bullet {
+            depth,
+            lead: Some(lead),
+            rest,
+        };
+    }
+
+    DocLine::Plain(body.to_owned())
+}
+
+/// Splits a leading `**bold**` off a line, and returns it with whatever followed it.
+fn bold_lead(text: &str) -> Option<(String, String)> {
+    let after = text.strip_prefix("**")?;
+    let (lead, rest) = after.split_once("**")?;
+
+    Some((lead.trim().to_owned(), rest.trim_start().to_owned()))
+}
+
+/// Splits the `*Name:*` a line opens with off the rest of it. A line that has none — a plain
+/// sub-bullet such as `- (do not do this)` — comes back whole, with no lead.
+fn doc_lead(text: &str) -> (Option<String>, String) {
+    let Some(after) = text.strip_prefix('*') else {
+        return (None, text.to_owned());
+    };
+
+    match after.split_once('*') {
+        Some((lead, rest)) => (Some(lead.trim().to_owned()), rest.trim_start().to_owned()),
+        None => (None, text.to_owned()),
+    }
+}
+
+/// Draws one parsed documentation line.
+fn doc_line(ui: &mut egui::Ui, line: &DocLine) {
+    match line {
+        DocLine::Gap => {
+            ui.add_space(6.0);
+        }
+        DocLine::Heading { lead, rest } => {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new(lead).strong().size(15.0));
+                if !rest.is_empty() {
+                    ui.label(RichText::new(rest));
+                }
+            });
+        }
+        DocLine::Bullet { depth, lead, rest } => {
+            ui.horizontal_wrapped(|ui| {
+                // Sub-bullets sit in under their parent, the way the file indents them.
+                ui.add_space(14.0 * *depth as f32);
+                ui.label(RichText::new("•").weak());
+                if let Some(lead) = lead {
+                    ui.label(RichText::new(lead).strong());
+                }
+                if !rest.is_empty() {
+                    ui.label(RichText::new(rest));
+                }
+            });
+        }
+        DocLine::Plain(text) => {
+            ui.label(RichText::new(text));
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -1589,6 +1988,68 @@ mod tests {
         assert!(read_bool("1"));
         assert!(!read_bool("false"));
         assert!(!read_bool("off"));
+    }
+
+    /// The documentation panel's line reader, against the shapes the pack's own file uses. Every
+    /// line of the sample is written the way `Modpack Documentation (READ THIS).md` writes it.
+    #[test]
+    fn documentation_lines_are_read_the_way_the_file_writes_them() {
+        let text = [
+            "**Ducks Modpack Documentation:** \\",
+            "",
+            "*Credits:* Skapp, Hoyt. \\",
+            "**Local Mods:**",
+            "- *DucksUI:* menu settings",
+            "\t- (do not do this)",
+            "    - indented by four spaces",
+            "just prose",
+        ]
+        .join("\n");
+        let parsed = doc_lines(&text);
+
+        assert!(matches!(
+            &parsed[0],
+            DocLine::Heading { lead, rest }
+                if lead.as_str() == "Ducks Modpack Documentation:" && rest.is_empty()
+        ));
+        assert!(matches!(parsed[1], DocLine::Gap));
+
+        // A description line with no dash is still a description, so it keeps its name split off.
+        assert!(matches!(
+            &parsed[2],
+            DocLine::Bullet { depth: 0, lead: Some(lead), rest }
+                if lead.as_str() == "Credits:" && rest == "Skapp, Hoyt."
+        ));
+        assert!(matches!(
+            &parsed[3],
+            DocLine::Heading { lead, .. } if lead.as_str() == "Local Mods:"
+        ));
+        assert!(matches!(
+            &parsed[4],
+            DocLine::Bullet { depth: 0, lead: Some(lead), rest }
+                if lead.as_str() == "DucksUI:" && rest == "menu settings"
+        ));
+
+        // Both ways the file indents a sub-bullet count as one level in, and neither has a name.
+        assert!(matches!(
+            &parsed[5],
+            DocLine::Bullet { depth: 1, lead: None, rest } if rest == "(do not do this)"
+        ));
+        assert!(matches!(
+            &parsed[6],
+            DocLine::Bullet { depth: 1, lead: None, rest } if rest == "indented by four spaces"
+        ));
+
+        assert!(matches!(&parsed[7], DocLine::Plain(text) if text == "just prose"));
+    }
+
+    /// A blank line is a gap, not an empty label — and a trailing backslash is not shown.
+    #[test]
+    fn documentation_blank_lines_become_gaps() {
+        assert!(matches!(doc_lines("   ")[0], DocLine::Gap));
+        // An empty file is simply no lines at all, which the panel draws as nothing.
+        assert!(doc_lines("").is_empty());
+        assert!(matches!(&doc_lines("text \\")[0], DocLine::Plain(text) if text == "text"));
     }
 
     /// The pointer is what leads the manager back to its appdata folder, so it has to round trip.

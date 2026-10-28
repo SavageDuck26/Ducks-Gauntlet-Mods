@@ -179,6 +179,27 @@ pub fn locate(pack_root: &Path, rel: &str) -> PathBuf {
     direct
 }
 
+/// The folder the pack keeps its written documentation in, below the same wrapper as the mods.
+pub const DOCS_DIR: &str = "Docs";
+
+/// The one file the manager shows: the pack's own read-me-first documentation.
+pub const DOC_FILE: &str = "Modpack Documentation (READ THIS).md";
+
+/// The pack's documentation file as it would be on disk. It is only there once the pack copy has
+/// been fetched, so callers check rather than assume.
+pub fn doc_path(pack_root: &Path) -> PathBuf {
+    locate(pack_root, DOCS_DIR).join(DOC_FILE)
+}
+
+/// The pack's documentation, read as text for the panel beside the mod list.
+///
+/// The docs sit inside the same wrapper the mods do — the repo keeps the pack in `Ducks-Modpack/` —
+/// so they are located exactly the way a mod is. A pack copy that has not been fetched yet simply
+/// reads as nothing, which is not an error: the panel says so.
+pub fn read_doc(pack_root: &Path) -> Option<String> {
+    fs::read_to_string(doc_path(pack_root)).ok()
+}
+
 /// Whatever folder every mod sits inside, worked out from the mods themselves.
 fn wrapper_of(paths: &[String]) -> String {
     let mut shared: Option<Vec<&str>> = None;
@@ -497,6 +518,10 @@ mod tests {
             "-- trials",
         );
         write_file(&root.join("README.md"), "docs");
+        write_file(
+            &pack.join(DOCS_DIR).join(DOC_FILE),
+            "**Local Mods:**\n- *FragileHeroes:* every hit is fatal",
+        );
 
         let found: Vec<String> = mods(&root).iter().map(PackMod::rel_path).collect();
 
@@ -515,6 +540,29 @@ mod tests {
             locate(&root, "Local Mods/FragileHeroes"),
             pack.join("Local Mods").join("FragileHeroes")
         );
+
+        // The docs are inside that same wrapper, so the panel on the right has to reach them the
+        // same way a mod is reached.
+        assert_eq!(doc_path(&root), pack.join(DOCS_DIR).join(DOC_FILE));
+        assert!(
+            read_doc(&root).is_some_and(|text| text.contains("every hit is fatal")),
+            "the documentation should be found below the wrapper"
+        );
+
+        fs::remove_dir_all(&root).ok();
+    }
+
+    /// A pack copy that has not been fetched yet — or one shipping no docs — is not an error: there
+    /// is simply nothing to show, and the panel says so.
+    #[test]
+    fn a_missing_documentation_file_reads_as_nothing() {
+        let root = temp_root("ducksmm_pack_no_docs");
+        write_file(
+            &root.join("Local Mods").join("DucksUI").join("script.lua"),
+            "-- ui",
+        );
+
+        assert!(read_doc(&root).is_none());
 
         fs::remove_dir_all(&root).ok();
     }

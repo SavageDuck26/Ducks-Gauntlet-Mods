@@ -11,8 +11,9 @@
 //! 2026-10-26_031610.conf   what it was taken from, and why
 //! ```
 //!
-// The restore half is finished and tested but nothing in the UI calls it yet — the savestate
-// browser is the next step — so unused warnings are silenced for the whole module.
+// The UI drives `create`, `restore` and `overwrite`. `remove` is written and tested but no button
+// asks for it yet — the savestate browser is the next step — so unused warnings are silenced for
+// the whole module.
 #![allow(dead_code)]
 
 use std::fs;
@@ -44,8 +45,6 @@ pub struct Savestate {
     pub label: String,
 }
 
-/// Flattens a value so it cannot break a line-based file. The settings and savestate files are both
-/// one `key = value` per line, and both go through here.
 /// Zips `source` into a fresh savestate and returns the name it was given.
 ///
 /// `name` is what the player typed. When that is empty the savestate is named after the date and
@@ -62,6 +61,41 @@ pub fn create(root: &Path, source: &Path, name: &str, label: &str) -> Result<Str
 
     write_info(root, &stamp, source, label).map_err(|err| err.to_string())?;
     Ok(stamp)
+}
+
+/// Replaces an existing savestate with the mods as they are now, keeping its name.
+///
+/// [`create`] deliberately never reuses a name, so taking a savestate always adds one. This is the
+/// other half of that: the player picked a savestate and asked for it to catch up, so its archive
+/// is rewritten in place. It cannot be undone, so the UI says so before calling this.
+pub fn overwrite(root: &Path, stamp: &str, source: &Path, label: &str) -> Result<(), String> {
+    let archive = archive_path(root, stamp);
+    if !archive.is_file() {
+        return Err(format!("there is no savestate called {stamp}"));
+    }
+
+    // Written beside the old archive and renamed over it, so a failure part way through — a full
+    // disk, a file being read — leaves the savestate that is there untouched.
+    let staging = root.join(format!("{stamp}.partial"));
+    fs::remove_file(&staging).ok();
+
+    let file = fs::File::create(&staging).map_err(|err| err.to_string())?;
+    let written = {
+        let mut zip = ZipWriter::new(file);
+        write_tree(&mut zip, source, "")
+            .and_then(|()| zip.finish().map(|_| ()).map_err(|err| err.to_string()))
+    };
+    if let Err(err) = written {
+        fs::remove_file(&staging).ok();
+        return Err(err);
+    }
+
+    if let Err(err) = fs::rename(&staging, &archive) {
+        fs::remove_file(&staging).ok();
+        return Err(err.to_string());
+    }
+
+    write_info(root, stamp, source, label).map_err(|err| err.to_string())
 }
 
 /// Adds every file under `dir` to the archive, keyed by its path inside the savestate.
@@ -216,6 +250,8 @@ fn free_name(root: &Path, name: &str) -> String {
 }
 
 
+/// Flattens a value so it cannot break a line-based file. The settings and savestate files are both
+/// one `key = value` per line, and both go through here.
 pub fn one_line(value: &str) -> String {
     value.replace(['\n', '\r'], " ")
 }
@@ -448,6 +484,49 @@ mod tests {
 
         assert!(utility_script(&install).is_file());
         assert_eq!(fs::read_to_string(&script).unwrap(), "-- ui");
+
+        fs::remove_dir_all(&root).ok();
+    }
+
+    /// Overwriting brings the named savestate up to date rather than adding another one: the list
+    /// is the same length afterwards, and the name is the one that was asked for.
+    #[test]
+    fn overwrite_replaces_the_named_savestate() {
+        let root = temp_root("ducksmm_saver_overwrite");
+        let install = sample_install(&root);
+        let states = root.join(SAVESTATE_DIR);
+
+        let stamp = create(&states, &install, "second try", "by hand").expect("create");
+
+        // Change the install, then bring the savestate up to date with it.
+        write_file(&mod_script(&install, "DucksUI"), "-- ui, edited");
+        overwrite(&states, &stamp, &install, "by hand").expect("overwrite");
+
+        let listed = list(&states);
+        assert_eq!(listed.len(), 1, "overwriting must not add a second savestate");
+        assert_eq!(listed[0].stamp, stamp);
+        assert!(!states.join(format!("{stamp}.partial")).exists());
+
+        let elsewhere = root.join("restored");
+        restore(&states, &stamp, &elsewhere).expect("restore");
+        assert_eq!(
+            fs::read_to_string(mod_script(&elsewhere, "DucksUI")).unwrap(),
+            "-- ui, edited"
+        );
+
+        fs::remove_dir_all(&root).ok();
+    }
+
+    /// There is nothing to rewrite when the name is not there, and saying so is better than writing
+    /// a savestate under a name the player did not ask for.
+    #[test]
+    fn overwriting_a_missing_savestate_fails() {
+        let root = temp_root("ducksmm_saver_overwrite_missing");
+        let install = sample_install(&root);
+        let states = root.join(SAVESTATE_DIR);
+        fs::create_dir_all(&states).expect("create the savestate folder");
+
+        assert!(overwrite(&states, "nope", &install, "by hand").is_err());
 
         fs::remove_dir_all(&root).ok();
     }

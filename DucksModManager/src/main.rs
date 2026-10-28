@@ -10,7 +10,7 @@ fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_title("Ducks Mod Manager")
-            .with_inner_size([1120.0, 720.0])
+            .with_inner_size([1280.0, 810.0])
             .with_min_inner_size([860.0, 520.0]),
         ..Default::default()
     };
