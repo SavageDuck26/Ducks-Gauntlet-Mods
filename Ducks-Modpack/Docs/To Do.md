@@ -11,7 +11,7 @@
 *Bug:* Pots cooldown + RandomLoadout do not display cooldown visuals correctly. (Reported by Siopilos) \
 *Proposed Fix:* N/A
 
-*Bug:* Random Items visuals display correctly for all heroes on the 1st floor, but after using a teleport or entering the next room, the visuals become incorrect again. \
+*Bug:* Random Items visuals display correctly for all heroes on the 1st floor, but after using a teleport or entering the next floor, the visuals become incorrect again. \
 *Proposed Fix:* N/A
 
 *Bug:* A double crown bug happens only when the player has the crown and drops it by knocking back. \
