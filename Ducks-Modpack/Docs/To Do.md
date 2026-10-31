@@ -2,9 +2,6 @@
 *Bug:* RandomLoadout needs a visual update fix, loadouts don't update for those without the mods. (Reported by Siopilos) \
 *Proposed Fix:* Add update func for non-modded in AddUtil.
 
-*Bug:* New lava floor enemies sometimes prevent room doors from opening. If all players rejoin, the host can use the hidden ball to open the room. \
-*Proposed Fix:* AddUtil update func to watch `cultist_armor_corpse` and force cleanup after ~15 seconds?
-
 *Bug:* Orb effects (Elementals) do not work when you are inside Wiza Barrier / Valkyrie Shield Pot, or when you break orbs using immune abilities (Thor Murder, Valkyrie AoE weapon, or dash on orbs). (Reported by Siopilos) \
 *Proposed Fix:* Change effects to ignore i-frames by applying instead of effecting.
 
