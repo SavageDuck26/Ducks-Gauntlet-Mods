@@ -46,11 +46,11 @@ _G.KNOSSOS_EXTRA_QUILTS_CRYPT = {
                 'modules/d01_crypt/quilts/encounters/crypt_quilt_mediumroom__xox_xex_xix_xex__04_keydoor',
                 'modules/d01_crypt/quilts/encounters/crypt_quilt_mediumroom__xox_xex_xix_xex__04_keydoor_mixed',
                 'modules/d01_crypt/quilts/encounters/crypt_quilt_mediumroom__xox_xex_xix_xex__04_keydoor_skeleton',
-                'modules/d01_crypt/quilts/encounters/crypt_quilt_mediumroom__xox_xex_xix_xex__05_keyenemies_skeleton',
-                'modules/d01_crypt/quilts/encounters/crypt_quilt_mediumroom__xox_xex_xix_xox__01_keyenemies',
+                -- 'modules/d01_crypt/quilts/encounters/crypt_quilt_mediumroom__xox_xex_xix_xex__05_keyenemies_skeleton', -- Can softlock
+                -- 'modules/d01_crypt/quilts/encounters/crypt_quilt_mediumroom__xox_xex_xix_xox__01_keyenemies', -- Can softlock
                 'modules/d01_crypt/quilts/encounters/crypt_quilt_mediumroom__xox_xex_xix_xox__01_keyenemies_mixed',
-                'modules/d01_crypt/quilts/encounters/crypt_quilt_mediumroom__xox_xex_xix_xox__01_keyenemies_skeleton',
-                'modules/d01_crypt/quilts/encounters/crypt_quilt_mediumroom__xox_xox_xix_xex__01_keyenemies',
+                -- 'modules/d01_crypt/quilts/encounters/crypt_quilt_mediumroom__xox_xex_xix_xox__01_keyenemies_skeleton', -- Can softlock
+                -- 'modules/d01_crypt/quilts/encounters/crypt_quilt_mediumroom__xox_xox_xix_xex__01_keyenemies', -- Can softlock
                 'modules/d01_crypt/quilts/encounters/crypt_quilt_mediumroom__xox_xox_xix_xex__01_keyenemies_skeleton',
             },
             small_encounter_rooms = {

@@ -30,10 +30,10 @@ _G.KNOSSOS_EXTRA_QUILTS_CAVES = {
                 'modules/d01_caves/quilts/encounters/caves_quilt_mediumroom__xox_xex_xix_xex__01_juggernauts',
                 'modules/d01_caves/quilts/encounters/caves_quilt_mediumroom__xox_xex_xix_xex__02',
                 -- 'modules/d01_caves/quilts/encounters/caves_quilt_mediumroom__xox_xex_xix_xex__02_spider_02_1',  -- BROKEN (in game): F6 named it as the problem room
-                'modules/d01_caves/quilts/encounters/caves_quilt_mediumroom__xox_xex_xix_xex__03',
-                'modules/d01_caves/quilts/encounters/caves_quilt_mediumroom__xox_xex_xix_xex__03_lobbers',
-                'modules/d01_caves/quilts/encounters/caves_quilt_mediumroom__xox_xex_xix_xex__03_spawner',
-                -- 'modules/d01_caves/quilts/encounters/caves_quilt_mediumroom__xox_xex_xix_xex__03_spider_queen',  -- RETIRED: not broken - can softlock easily
+                -- 'modules/d01_caves/quilts/encounters/caves_quilt_mediumroom__xox_xex_xix_xex__03', -- RETIRED: not broken - can softlock easily
+                -- 'modules/d01_caves/quilts/encounters/caves_quilt_mediumroom__xox_xex_xix_xex__03_lobbers', -- RETIRED: not broken - can softlock easily
+                -- 'modules/d01_caves/quilts/encounters/caves_quilt_mediumroom__xox_xex_xix_xex__03_spawner', -- RETIRED: not broken - can softlock easily
+                -- 'modules/d01_caves/quilts/encounters/caves_quilt_mediumroom__xox_xex_xix_xex__03_spider_queen', -- RETIRED: not broken - can softlock easily
             },
             small_encounter_rooms = {
                 'modules/d01_caves/quilts/encounters/caves_quilt_smallroom__o_e_i_e__01',
@@ -107,6 +107,7 @@ _G.KNOSSOS_EXTRA_QUILTS_CAVES = {
         encounters = {
             large_encounter_rooms = {
                 'modules/d01_caves/quilts/encounters/caves_quilt_largeroom__xox_xex_xix_xex__03_spider',
+                -- 'modules/d01_caves/quilts/encounters/caves_quilt_largeroom__eoe_xex_xix_eex__04_civilization', -- Untested, likely broken
             },
             small_encounter_rooms = {
                 'modules/d01_caves/quilts/encounters/caves_quilt_smallroom__oo_ee_ii_ee__02_spider',
