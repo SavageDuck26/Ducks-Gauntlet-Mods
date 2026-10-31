@@ -43,8 +43,6 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 GUI:add_widget(self.widget)
 
                 local tip_strings = {
-                    "Top: Wait what, that's not a tip! Someone get Morak over here!",
-                    "Tip: Don't drink and drive.",
                     "???: Blue Jester needs food badly! Wait, wrong game.",
                     "???: Does anyone even read these?",
                     "???: Morak's been slacking lately if you ask me.",
@@ -54,7 +52,6 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                     "???: What are we? Some kind of Legends? Heh...",
                     "???: At least keep it down on this run, you've been giving me migraines.",
                     "???: I swear, if one more person asks me about the secret level...",
-                    "Tip: Food is good",
                     "???: I heard the Elf lost his bow last run.",
                     "???: I heard the Valkyrie lost her shield last run.",
                     "???: I heard the Wizard lost his tome last run.",
@@ -68,7 +65,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                     "???: I'm aware some of my wares suck, I'm working on it.",
                     "???: Never was a fan of that gargoyle.",
                     "???: Whataya buyin'? Heh heh, just something an old friend used to say.",
-                    "Merchant: Hey! They aren't supposed to know that!",
+                    "Merchant: I should make a comeback.",
                     "???: Some of you heros need to learn some manners. I saw Thor practically inhale a turkey.",
                     "???: Am I from the Crypt? No, I just moved in.",
                     "???: I hear the Caves are nice this time of year.",
@@ -81,6 +78,15 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                     "???: Everytime I sweep the heros come back and mess it all up again...",
                     "???: Do you know how many urns and vases I've had to replace?",
                     "???: The Sword of Tyrfing? I hardly know her!",
+                    "???: Where are all of these new rooms coming from??? I thought Morak removed them...",
+                    "???: Apparently someone more creative than Morak is snooping around...",
+                    "???: At least there's no Minotaurs around, right?",
+                    "???: Ugh, these sorcerers and shamans are getting more powerful.",
+                    "???: Batter up!",
+                    "???: In an ancient time, the evil mage Garm, using the power of the runestones, released a great evil upon the land.",
+                    "???: This demon, Skorne, broke free of Garm's control, crushing him and imprisoning his soul in the underworld.",
+                    "???: Skorne then released his minions upon the land, and scattered the runestones across the Eight Realms.",
+                    "???: To assemble the Runestones, no one has dared try… until now."
                 }
                 
                 local tip_text = self.widget:get("tip_text")
