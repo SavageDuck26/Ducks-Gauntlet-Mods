@@ -1,6 +1,10 @@
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Orig fallback builder"
 
+-- Master debug switch, matching script_quilt_builder_branching.lua.  The debug blocks
+-- below are diagnostics only; leave false for normal play.
+local is_debug = false
+
 
 function _G.get_orig_quilt_builder()
 	local function quilt_error(fmt, ...)
@@ -491,7 +495,7 @@ function _G.get_orig_quilt_builder()
 	end
 
 	QuiltBuilder.should_debug_print = function (self)
-		return false
+		return is_debug
 	end
 
 	QuiltBuilder.connect_seeds = function (self)

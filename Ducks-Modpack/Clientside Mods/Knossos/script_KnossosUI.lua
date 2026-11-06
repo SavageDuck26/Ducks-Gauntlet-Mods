@@ -20,9 +20,10 @@ Knossos.CONFIG.interconnect_enabled = (Knossos.CONFIG.interconnect_enabled == ni
 Knossos.CONFIG.extra_rooms_enabled = (Knossos.CONFIG.extra_rooms_enabled == nil) and true or Knossos.CONFIG.extra_rooms_enabled
 
 local KNOSSOS_SETTINGS = {
-    modes = {"Small", "Medium", "Large", "Massive", "Labyrinth"},
-    current_mode_index = 1, -- Small by default
+    modes = {"None", "Small", "Medium", "Large", "Massive", "Labyrinth"},
+    current_mode_index = 1, -- None if the saved mode is not in the list
     descriptions = {
+        None = "Knossos with only the extra rooms, no branching.",
         Small = "Minimal branching.",
         Medium = "Balanced branching.",
         Large = "Expanded recursive branching.",
@@ -48,6 +49,7 @@ end
 
 local function get_mode_color(mode)
     local colors = {
+        None = "gray",
         Small = "green",
         Medium = "yellow",
         Large = "orange",
@@ -90,6 +92,13 @@ function select_knossos_mode(index)
             local description_widget = current_overlay_widget:get("knossos_description")
             if description_widget then
                 description_widget:set_text(KNOSSOS_SETTINGS.descriptions[new_mode])
+                -- The long "None" explanation has its own wrapping widget.
+                description_widget:set_visible(new_mode ~= "None")
+            end
+
+            local none_description_widget = current_overlay_widget:get("knossos_description_none")
+            if none_description_widget then
+                none_description_widget:set_visible(new_mode == "None")
             end
             
             local mode_label = current_overlay_widget:get("current_mode_label")
@@ -106,7 +115,7 @@ function update_knossos_radio_buttons()
         return
     end
     
-    local radiobutton_ids = {"knossos_small", "knossos_medium", "knossos_large", "knossos_massive", "knossos_labyrinth"}
+    local radiobutton_ids = {"knossos_none", "knossos_small", "knossos_medium", "knossos_large", "knossos_massive", "knossos_labyrinth"}
     
     for i, id in ipairs(radiobutton_ids) do
         local widget = current_overlay_widget:get(id)
@@ -251,9 +260,9 @@ local function create_knossos_config_overlay_ui()
                         children = {
                             {
                                 checked = (KNOSSOS_SETTINGS.current_mode_index == 1),
-                                id = "knossos_small",
+                                id = "knossos_none",
                                 type = "radiobutton",
-                                text = "Small",
+                                text = "None",
                                 size = {100, 50},
                                 font_size = 18,
                                 on = {
@@ -264,10 +273,10 @@ local function create_knossos_config_overlay_ui()
                             },
                             {
                                 checked = (KNOSSOS_SETTINGS.current_mode_index == 2),
-                                id = "knossos_medium",
-                                type = "radiobutton", 
-                                text = "Medium",
-                                size = {110, 50},
+                                id = "knossos_small",
+                                type = "radiobutton",
+                                text = "Small",
+                                size = {100, 50},
                                 font_size = 18,
                                 on = {
                                     clicked = function()
@@ -277,10 +286,10 @@ local function create_knossos_config_overlay_ui()
                             },
                             {
                                 checked = (KNOSSOS_SETTINGS.current_mode_index == 3),
-                                id = "knossos_large",
-                                type = "radiobutton",
-                                text = "Large",
-                                size = {100, 50},
+                                id = "knossos_medium",
+                                type = "radiobutton", 
+                                text = "Medium",
+                                size = {110, 50},
                                 font_size = 18,
                                 on = {
                                     clicked = function()
@@ -290,10 +299,10 @@ local function create_knossos_config_overlay_ui()
                             },
                             {
                                 checked = (KNOSSOS_SETTINGS.current_mode_index == 4),
-                                id = "knossos_massive",
+                                id = "knossos_large",
                                 type = "radiobutton",
-                                text = "Massive",
-                                size = {110, 50},
+                                text = "Large",
+                                size = {100, 50},
                                 font_size = 18,
                                 on = {
                                     clicked = function()
@@ -303,6 +312,19 @@ local function create_knossos_config_overlay_ui()
                             },
                             {
                                 checked = (KNOSSOS_SETTINGS.current_mode_index == 5),
+                                id = "knossos_massive",
+                                type = "radiobutton",
+                                text = "Massive",
+                                size = {110, 50},
+                                font_size = 18,
+                                on = {
+                                    clicked = function()
+                                        select_knossos_mode(5)
+                                    end
+                                }
+                            },
+                            {
+                                checked = (KNOSSOS_SETTINGS.current_mode_index == 6),
                                 id = "knossos_labyrinth",
                                 type = "radiobutton",
                                 text = "Labyrinth",
@@ -310,7 +332,7 @@ local function create_knossos_config_overlay_ui()
                                 font_size = 18,
                                 on = {
                                     clicked = function()
-                                        select_knossos_mode(5)
+                                        select_knossos_mode(6)
                                     end
                                 }
                             }
@@ -326,7 +348,7 @@ local function create_knossos_config_overlay_ui()
                         position = {"center", "top + 240"},
                         text_align = "center"
                     },
-                    -- Description text
+                    -- Description text (short, one line per mode)
                     {
                         id = "knossos_description",
                         type = "label",
@@ -336,6 +358,18 @@ local function create_knossos_config_overlay_ui()
                         position = {"center", "top + 280"},
                         text_align = "center"
                     },
+                    -- The "None" explanation is too long for one line, so it gets a
+                    -- wrapping widget of its own; the two swap with the mode.
+                    {
+                        id = "knossos_description_none",
+                        type = "textarea",
+                        areatext = KNOSSOS_SETTINGS.descriptions.None,
+                        font_size = 20,
+                        color = "white",
+                        position = {"center", "top + 272"},
+                        size = {690, 60},
+                        text_align = "center"
+                    },
                     -- Back button
                     {
                         id = "knossos_config_back_button",
@@ -343,7 +377,7 @@ local function create_knossos_config_overlay_ui()
                         text = "Back",
                         font_size = 20,
                         color = "white",
-                        position = {"center", "top + 340"},
+                        position = {"center", "top + 360"},
                         size = {180, 50},
                         style = "button_standard",
                         on = {
@@ -367,7 +401,19 @@ function Knossos.show_config()
     end
     
     current_overlay_widget = GUI:load_proto(create_knossos_config_overlay_ui())
-    
+
+    -- The two description widgets swap depending on the mode: the label for the short
+    -- one-liners, the textarea for the long "None" explanation.
+    local mode = get_current_knossos_mode()
+    local description_widget = current_overlay_widget:get("knossos_description")
+    if description_widget then
+        description_widget:set_visible(mode ~= "None")
+    end
+    local none_description_widget = current_overlay_widget:get("knossos_description_none")
+    if none_description_widget then
+        none_description_widget:set_visible(mode == "None")
+    end
+
     GUI:add_modal_widget(current_overlay_widget, GUI.MAIN_CONTROLLER)
 end
 

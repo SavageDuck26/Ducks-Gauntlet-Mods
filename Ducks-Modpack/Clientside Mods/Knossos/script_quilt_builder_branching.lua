@@ -1,9 +1,14 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.5.0"
+local MOD_VERSION = "1.5.1"
 local MOD_DESCRIPTION = "Clean custom Quilt Builder override that branches and interconnects branches"
 
 local MOD_NAME, log_message = Mods.init_mod()
+
+-- Master debug switch.  While false the mod writes nothing anywhere: no loader log,
+-- no knossos_extra_quilts.txt, no knossos_current_floor.txt, and the QuiltBuilder debug
+-- branches stay off.  Flip to true when diagnosing a layout.
+local is_debug = false
 
 -- log_message from the loader goes somewhere mods cannot read - there is no console
 -- in this install, which is why none of the extra-quilt lines ever appeared in any
@@ -26,6 +31,11 @@ do
     local loader_log = log_message
 
     log_message = function(msg)
+        -- The loader log and the mirror file are both debug output.
+        if not is_debug then
+            return
+        end
+
         pcall(loader_log, msg)
         pcall(function()
             local f = io.open(path, "a")
@@ -49,7 +59,8 @@ Knossos.loaded = true
 -- and never accumulates.  io.open will not create a directory, so the path is the mods
 -- root, same as the extra-quilt log.
 Knossos.write_current_floor = function (text)
-    if CURRENT_FLOOR_PATH == nil then
+    -- Diagnostic dump only: nothing is written unless the debug switch is on.
+    if not is_debug or CURRENT_FLOOR_PATH == nil then
         return
     end
 
@@ -101,6 +112,24 @@ Knossos.BRANCH_DEFAULTS = {
 }
 
 Knossos.MODE_CONFIGS = Knossos.MODE_CONFIGS or {}
+
+-- No branching: the normal generation path, with the extra-quilt list still merged into
+-- the layout by QuiltBuilder.init.  `enabled = false` makes process_branch_queue and
+-- interconnect_branches return immediately, and branch_chance = 0 stops connect_seeds
+-- from ever queueing a branch, so the builder behaves like the vanilla generator.
+Knossos.MODE_CONFIGS.none = {
+    enabled = false,
+    random_exits = false,
+    max_total_branches = 0,
+    branch_chance = 0.0,
+    max_branches_per_room = 0,
+    allow_recursive = false,
+    recursive_chance = 0.0,
+    max_depth = 1,
+    interconnect_enabled = false,
+    interconnect_max_total = 0,
+    interconnect_max_attempts = 0,
+}
 
 Knossos.MODE_CONFIGS.small = {
     random_exits = false,
@@ -184,14 +213,14 @@ Knossos.MODE_CONFIGS.massive = {
     max_branches_per_room = 5,
     min_hallways = 1,
     max_hallways = 2,
-    max_branch_length = 12,
+    max_branch_length = 10,
     min_space_score = 3,
     allow_recursive = true,
     recursive_chance = 0.5,
     max_depth = 3,
     interconnect_enabled = true,
     interconnect_dead_end_chance = 0.35,
-    interconnect_max_total = 12,
+    interconnect_max_total = 16,
     interconnect_max_attempts = 25,
     interconnect_max_distance = 14,
     interconnect_min_distance = 2,
@@ -879,8 +908,9 @@ function Knossos.branch_quilt_builder()
             end
         end
 
-        -- Global UI toggle overrides mode/layout settings when explicitly set
-        if Knossos.CONFIG.interconnect_enabled ~= nil then
+        -- Global UI toggle overrides mode/layout settings when explicitly set.  A mode
+        -- that turns branching off (None) must not have interconnect switched back on.
+        if self.branch_config.enabled ~= false and Knossos.CONFIG.interconnect_enabled ~= nil then
             self.branch_config.interconnect_enabled = Knossos.CONFIG.interconnect_enabled
         end
 
@@ -991,7 +1021,8 @@ function Knossos.branch_quilt_builder()
     -- position readout can be cross-referenced against it.  Sorted left-most first, then
     -- up, so the first line is the answer.
     QuiltBuilder.write_current_floor_log = function (self)
-        if Knossos == nil or Knossos.write_current_floor == nil then
+        -- Runs once per floor, so skip building the listing at all when off.
+        if not is_debug or Knossos == nil or Knossos.write_current_floor == nil then
             return
         end
 
@@ -1460,7 +1491,8 @@ function Knossos.branch_quilt_builder()
     end
 
     QuiltBuilder.should_debug_print = function (self)
-        return false
+        -- The same switch as the logging, so the builder's debug branches follow it.
+        return is_debug
     end
 
     QuiltBuilder.connect_seeds = function (self)

@@ -1,28 +1,19 @@
 ## Known Bugs (no order):
 *Bug:* RandomLoadout needs a visual update fix, loadouts don't update for those without the mods. (Reported by Siopilos) \
 *Proposed Fix:* Add update func for non-modded in AddUtil.
-
-*Bug:* Orb effects (Elementals) do not work when you are inside Wiza Barrier / Valkyrie Shield Pot, or when you break orbs using immune abilities (Thor Murder, Valkyrie AoE weapon, or dash on orbs). (Reported by Siopilos) \
-*Proposed Fix:* Change effects to ignore i-frames by applying instead of effecting.
+*Bug:* RandomLoadout visuals display correctly for all heroes on the 1st floor, but after using a teleport or entering the next floor, the visuals become incorrect again. \
+*Proposed Fix:* N/A
 
 *Bug:* Pots cooldown + RandomLoadout do not display cooldown visuals correctly. (Reported by Siopilos) \
 *Proposed Fix:* N/A
 
-*Bug:* Random Items visuals display correctly for all heroes on the 1st floor, but after using a teleport or entering the next floor, the visuals become incorrect again. \
-*Proposed Fix:* N/A
-
-*Bug:* A double crown bug happens only when the player has the crown and drops it by knocking back. \
-*Proposed Fix:* N/A
+*Bug:* Orb effects (Elementals) do not work when you are inside Wiza Barrier / Valkyrie Shield Pot, or when you break orbs using immune abilities (Thor Murder, Valkyrie AoE weapon, or dash on orbs). (Reported by Siopilos) \
+*Proposed Fix:* Change effects to ignore i-frames by applying instead of effecting.
 
 *Bug:* Enemy ignore bug: Sometimes enemies ignore certain players. Happens when using Doppelgangers, if a player is the “second doppelganger” they become invisible to the host. \
 *Proposed Fix:* Overhaul entire system, too many bugs present. Assign unique IDs?
 
 *Bug:* Fire Bomber explosion visuals do not appear. \
-*Proposed Fix:* N/A
-
-*Bug:* Knossos with extra rooms can lock players behind key doors if it's the first room encountered. Extra keys from RandomUrns fixes this. \
-*Proposed Fix:* Force spawn keybearer enemies when keydoors present?
-*Bug:* Preslayer rooms in Knossos can sometimes soft-lock players if the 1st room is a full key-door room. Having maximum keys from RandomUrns is a workaround. \
 *Proposed Fix:* N/A
 
 *Bug:* Knossos can sometimes generate dead ends when placed above a large. (Rare, and not a game-breaking bug.) \
@@ -53,3 +44,4 @@
 
 ## Outside Modding: 
 - Custom levels: Caves level that spirals downwards to unlock a massive elevator in the middle that brings to surface where a boss is?
+- ^^^^^^^^^^^^^ Hallways and Encounters for Endless first. Hallway is working, encounter is harder with extra -Z axis changes for under floor level.
