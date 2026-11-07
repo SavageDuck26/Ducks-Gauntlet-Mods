@@ -1,8 +1,7 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "1.1.1"
-local MOD_DESCRIPTION = "Allows you to switch characters in game."
-
+local MOD_VERSION = "1.2.0"
+local MOD_DESCRIPTION = "Allows you to switch characters in game. (F3 or R2)"
 
 -- Open the menu IN GAME and press "F3" or "R2".
 
@@ -10,14 +9,27 @@ CharacterSelect = CharacterSelect or {}
 CharacterSelect.loaded = true
 
 local MOD_NAME, log_message = Mods.init_mod(nil, "mods/CharacterSelect/CharacterSelect.lua")
--- print("[" .. MOD_NAME .. "] Someone's indecisive...")
+
+
+local RIGHT_TRIGGER = _G.IS_PS4 and "r2" or "right_trigger"
+local function right_trigger_pressed()
+    local pad = rawget(_G, "Pad1")
+
+    if pad == nil or not pad.active() then
+        return false
+    end
+
+    local index = pad.button_index(RIGHT_TRIGGER)
+
+    return index ~= nil and pad.pressed(index)
+end
 
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
 
     if path == "lua/menu/screen_ingame_main" then
         Mods.hook:set_object_path("ScreenIngameMain", "update", function(orig, self, dt)
-                if (_G.IS_PS4 and Pad1.active() and Pad1.pressed(Pad1.button_index("r2")) or _G.IS_PC and Keyboard.pressed(Keyboard.button_index("f3"))) then
+                if right_trigger_pressed() or (_G.IS_PC and Keyboard.pressed(Keyboard.button_index("f3"))) then
                     if self.app_state:isa(StateGame) then
                         self:exit()
 

@@ -127,7 +127,10 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                         
                         local target_unit = StateAux.get_random_target(ability_component, unit, nil, EYE_SORC_TARGET_RANGE, true, predicates)
                         
-                        if target_unit then
+                        if target_unit
+                            and Unit.alive(target_unit)
+                            and EntityAux.owned(target_unit)
+                            and EntityAux.has_component_master(target_unit, "ability") then
                             local command = TempTableFactory:get_map(
                                 "ability_name", "lightning_shield",
                                 "settings_path", "equipment/wizard/weapon01",

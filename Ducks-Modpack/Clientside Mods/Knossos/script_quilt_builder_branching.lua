@@ -258,6 +258,34 @@ Knossos.MODE_CONFIGS.labyrinth = {
 
 Knossos.is_enabled = Knossos.CONFIG.enabled
 
+-- Pieces that softlock the run when they spawn, keyed by their full quilt piece
+-- name (e.g. "caves_quilt_mediumroom__xox_xex_xix_xex__04_civilization").  Any
+-- name listed here is dropped while the quilt is assembled, so it is never
+-- offered as a candidate and cannot be placed.
+Knossos.SOFTLOCK_BLACKLIST = {
+    "caves_quilt_mediumroom__xox_xex_xix_xex__04_civilization", -- Jump pad to north, can softlock on no branch.
+}
+
+-- Dynamic guard read fresh on every call: an empty (or cleared) list does
+-- nothing, and entries can be added or removed at runtime without a reload.
+-- Matching is on the exact piece name, which is how tiles are keyed throughout
+-- the quilt builder (layout sections and injected extra-quilt pieces alike).
+function Knossos.is_softlock_blacklisted(name)
+    local blacklist = Knossos.SOFTLOCK_BLACKLIST
+
+    if type(name) ~= "string" or type(blacklist) ~= "table" then
+        return false
+    end
+
+    for _, entry in ipairs(blacklist) do
+        if entry == name then
+            return true
+        end
+    end
+
+    return false
+end
+
 Knossos.original_quilt_builder = {}
 
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
@@ -551,11 +579,14 @@ function Knossos.branch_quilt_builder()
                     end
                 end
 
-                for old_tile, _ in pairs(target_set) do
-                    -- Nothing
+                if Knossos.is_softlock_blacklisted(name) then
+                    -- Softlocked piece: never offer it as a candidate.  Removing it
+                    -- from the set is what keeps it out of every placement pass,
+                    -- since these sets are the only source of tiles for the build.
+                    log_message(string.format("[Knossos] softlock blacklist: skipped %s", name))
+                else
+                    target_set[tile] = true
                 end
-
-                target_set[tile] = true
             end
         end
     end
