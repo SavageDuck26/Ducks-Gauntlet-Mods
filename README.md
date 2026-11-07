@@ -1,4 +1,4 @@
-This is where I will be updating my modpack for Gauntlet Slayer Edition using the Bitesquid mod loader made by Skapp. Please read all Documentation for mods before using them. Modding Discord server (https://discord.com/invite/QCrzH9dVpJ).
+This is where I will be updating my modpack for Gauntlet Slayer Edition using the Bitesquid mod loader made by Skapp. Please read all Documentation for mods before using them. Modding Discord server: (https://discord.com/invite/QCrzH9dVpJ).
 
 **Important Notes:**
 - The Mod Manager is the easiest way to update/track mods. It is not required, but it is recommened.
