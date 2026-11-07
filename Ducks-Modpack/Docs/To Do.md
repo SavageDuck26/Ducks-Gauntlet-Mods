@@ -1,6 +1,6 @@
 ## Known Bugs (no order):
 *Bug:* RandomLoadout needs a visual update fix, loadouts don't update for those without the mods. (Reported by Siopilos) \
-*Proposed Fix:* Add update func for non-modded in AddUtil.
+*Proposed Fix:* Add update func for non-modded in AddUtil.\
 *Bug:* RandomLoadout visuals display correctly for all heroes on the 1st floor, but after using a teleport or entering the next floor, the visuals become incorrect again. \
 *Proposed Fix:* N/A
 
@@ -25,6 +25,12 @@
 *Bug:* Ducks Mods on the welcome screen display incorrect text. \
 *Proposed Fix:* Localization issue, can likely override widget.
 
+*Proposed Fix:* Necromancer's slow-area ability can launch players outside the map when used near jump pads.
+*Proposed Fix:* Game-bug itself. Make sure movespeed doesn't affect jump distance?
+
+*Bug:* Root traps sometimes activate faster for non-host players.
+*Proposed Fix:* N/A
+
 ## Mod Suggestions (no order):
 - Fifth Player. (Working pre-build in testing)
 - Lich balls should be able to damage enemies as well (currently they only damage towers).
@@ -34,10 +40,12 @@
 - When a player dies, revive them as Lazy for the next floor only, or revive them as Lazy forever.
 - When a player loots any gold on this floor he instand became lazy for this floor.
 - Add more death bosses.
-- Knossos without extra rooms. (No branching, normal gen, but with the extra rooms.)
 - Option to enable/disable island rooms in Knossos.
 - Option for Knossos to generate more linear room layouts.
 - Ability to save mod settings layouts in-game. (settings.json)
+- Option to turn all pots on a map into Gold Pots.
+- Alliance mod option to keep the same enemy types throughout all realms.
+
 
 ## Self-Suggestions:
 - Meteors that follow player and keep dropping non-stop. (Like MeteorStorm from Super Stardust)
