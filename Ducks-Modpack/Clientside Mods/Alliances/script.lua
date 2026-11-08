@@ -236,6 +236,11 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
 
     if path == "foundation/lua/entity/entity_spawner" then
         Mods.hook:set_object_path("EntitySpawner", "spawn_entity", function(orig, self, unit_path, position, rotation, parent_go_id, setup_info)
+
+            if _G.is_host_ducks_mods ~= true then
+                return orig(self, unit_path, position, rotation, parent_go_id, setup_info)
+            end
+
             local modified_path = alliances_modify_unit_path(unit_path)
 
             -- Let original implementation do everything it needs (this preserves spawn_info)
