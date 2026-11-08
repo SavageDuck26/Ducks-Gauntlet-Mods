@@ -31,6 +31,11 @@
 *Bug:* Root traps sometimes activate faster for non-host players.
 *Proposed Fix:* N/A
 
+*Bug:* Character Selection + Dead Man's Mod: 
+If the host uses F3 while Dead Man's Mod is enabled and the host becomes the last player alive, the game ends immediately.
+If a guest uses F3, Dead Man's Mod works correctly, but the run does not end when all players die.
+*Proposed Fix:* N/A
+
 ## Mod Suggestions (no order):
 - Fifth Player. (Working pre-build in testing)
 - Lich balls should be able to damage enemies as well (currently they only damage towers).

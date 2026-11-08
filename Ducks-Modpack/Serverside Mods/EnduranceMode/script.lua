@@ -1,13 +1,9 @@
--- =================================================================================================
--- Author: SavageDuck26
--- Version: 1.4
--- Purpose: Random floor every endless level.
--- =================================================================================================
 
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_VERSION = "1.4.0"
 local MOD_DESCRIPTION = "Random floor every endless level"
 
+-- "And a weird bug happened only once, Players spots when entering next floor maybe not correct."
 
 EnduranceMode = EnduranceMode or {}
 EnduranceMode.loaded = true
@@ -201,6 +197,3 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
     return result
 end, MOD_NAME .. ".require", MOD_NAME)
 
--- When 0 coins and all people dies, game does not end.
--- Hell lava floors have their own meteors system (meteors mod does not affected there)
--- And a weird bug happened only once, Players spots when entering next floor maybe not correct.
