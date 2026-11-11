@@ -214,6 +214,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 on_enter = {
                     custom_callback = function(component, unit, ability)
                         if not is_grunt_shaman_enabled() then return end
+                        if _G.is_host_ducks_mods ~= true then return end
                         if math.random() < get_projectile_chance() then
                             local entity_spawner = FlowCallbacks.state_game.entity_spawner
                             local position = Unit.world_position(unit, 0)

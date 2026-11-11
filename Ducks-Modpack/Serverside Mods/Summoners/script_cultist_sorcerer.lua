@@ -129,6 +129,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 on_enter = {
                     custom_callback = function(component, unit, ability)
                         if not is_cultist_sorcerer_enabled() then return end
+                        if _G.is_host_ducks_mods ~= true then return end
                         if math.random() < get_shadow_serpent_chance() then
                             local entity_spawner = FlowCallbacks.state_game.entity_spawner
                             local position = Unit.world_position(unit, 0)
@@ -157,6 +158,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
 
                         ability.shielding_id = World.create_particles(world, shielding_effect, Unit.world_position(ability.target_unit, 0))
                         
+                        if _G.is_host_ducks_mods ~= true then return end
                         if is_cultist_sorcerer_enabled() and math.random() < get_shield_spawner_chance() then
                             local entity_spawner = FlowCallbacks.state_game.entity_spawner
                             local position = Unit.world_position(unit, 0)

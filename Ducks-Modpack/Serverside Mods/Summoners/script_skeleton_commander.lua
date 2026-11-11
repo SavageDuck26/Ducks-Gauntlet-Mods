@@ -56,6 +56,8 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                                 return
                             end
 
+                            if _G.is_host_ducks_mods ~= true then return end
+
                             if math.random() < get_arrow_lob_chance() then
                                 -- The lob targets a position, so the lich is summoned where the arrow lands.
                                 -- Box the pose now: engine vectors/quaternions are recycled scratch buffers

@@ -108,6 +108,8 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                                 return
                             end
 
+                            if _G.is_host_ducks_mods ~= true then return end
+
                             if not Unit.alive(event.target_unit) then
                                 return
                             end

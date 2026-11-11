@@ -38,6 +38,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                     end
                     
                     if not is_cultist_zealot_enabled() then return end
+                    if _G.is_host_ducks_mods ~= true then return end
                     if math.random() > get_death_spawn_chance() then return end
                     
                     local entity_spawner = FlowCallbacks.state_game.entity_spawner
