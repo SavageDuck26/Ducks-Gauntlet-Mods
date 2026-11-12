@@ -4,7 +4,11 @@
 mod install;
 mod pack;
 mod saver;
+mod selfupdate;
 mod ui;
+
+#[cfg(test)]
+mod testserver;
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {

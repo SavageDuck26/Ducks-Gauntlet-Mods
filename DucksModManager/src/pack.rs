@@ -1,13 +1,14 @@
 //! The manager's own copy of the pack.
 //!
-//! There is no git here on purpose. The pack is fetched as a plain HTTPS download of GitHub's
-//! archive of the branch, and unpacked with `tar`/`flate2`; the release assets are the same story
-//! with `zip`. That means one small HTTP crate instead of a git implementation, no git, ssh or gh
-//! on the player's machine, and the Mozilla roots compiled into the binary by ureq's own rustls
-//! setup, so nothing depends on the system certificate store.
+//! There is no git here on purpose. Whether the pack has moved on is one small request to GitHub's
+//! API for the branch's latest commit SHA; the archive itself is a plain HTTPS download of that
+//! branch, unpacked with `tar`/`flate2` only when the SHA says something changed. That means one
+//! small HTTP crate instead of a git implementation, no git, ssh or gh on the player's machine, and
+//! the Mozilla roots compiled into the binary by ureq's own rustls setup, so nothing depends on the
+//! system certificate store.
 //!
-//! What a snapshot costs us is history: there is no commit to diff against, so a mod's version is
-//! identified by a fingerprint of its files instead. That is all `install.rs` ever needed.
+//! What a snapshot costs us is history: a mod is still identified by a fingerprint of its files,
+//! because there is no checkout to diff against. That is all `install.rs` ever needed.
 //!
 //! Everything in here is about getting the pack onto disk and reading it. Deciding what to do with
 //! the files is `install.rs`'s job.
@@ -15,15 +16,21 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use std::time::Duration;
 
 use sha2::{Digest, Sha256};
 
 /// Folder inside the manager's appdata holding the pack copy.
 pub const PACK_DIR: &str = "pack";
 
-/// Where the fingerprint of the pack copy on disk is kept, so the next check can tell whether the
+/// Where the commit SHA of the pack copy on disk is kept, so the next check can tell whether the
 /// pack has moved on.
 pub const VERSION_FILE: &str = "pack.version";
+
+/// ureq starts with every timeout switched off. The SHA check runs before the window is first
+/// drawn, so it gets a short deadline; the archive gets long enough for a slow line to finish.
+const CHECK_TIMEOUT: Duration = Duration::from_secs(15);
+const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// A mod found in the pack. `<category>/<name>` is its path both in the pack and in the install.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -53,16 +60,29 @@ impl PackMod {
 pub type Tree = BTreeMap<String, Vec<u8>>;
 
 /// The tarball for a branch: GitHub's archive of it, which is what the manager downloads. Public,
-/// no API and no token, and it redirects to codeload — which ureq follows.
+/// no token, and it redirects to codeload — which ureq follows.
 pub fn archive_url(repo_url: &str, branch: &str) -> String {
     let base = repo_url.trim_end_matches('/');
     let base = base.strip_suffix(".git").unwrap_or(base);
     format!("{base}/archive/refs/heads/{branch}.tar.gz")
 }
 
+/// An HTTP agent with one deadline covering the whole request: resolve, connect, redirects and the
+/// body. `ureq` ships with no timeout at all, which is not something the UI thread can afford.
+fn agent(timeout: Duration) -> ureq::Agent {
+    let config = ureq::Agent::config_builder()
+        .timeout_global(Some(timeout))
+        .build();
+
+    ureq::Agent::new_with_config(config)
+}
+
 /// Downloads `url` to `dest`, streamed, so even a large archive never sits in memory.
 pub fn download(url: &str, dest: &Path) -> Result<(), String> {
-    let mut response = ureq::get(url).call().map_err(|err| err.to_string())?;
+    let mut response = agent(DOWNLOAD_TIMEOUT)
+        .get(url)
+        .call()
+        .map_err(|err| err.to_string())?;
     let mut body = response.body_mut().as_reader();
 
     if let Some(parent) = dest.parent() {
@@ -324,20 +344,27 @@ pub enum Refreshed {
     Changed { version: String },
 }
 
-/// Fetches the pack if it has changed, and reports its version either way.
+/// Fetches the pack if the branch has moved on, and reports the commit either way.
 ///
-/// The download is hashed first, so an unchanged pack costs one request and nothing else. A changed
-/// one is unpacked into a fresh folder and only then swapped in, so a failed download or a
-/// half-written unpack can never leave the pack copy in pieces.
-pub fn refresh(pack_dir: &Path, url: &str) -> Result<Refreshed, String> {
+/// The check is one small request for the branch's latest commit SHA, so an unchanged pack costs no
+/// download at all. A moved one is unpacked into a fresh folder and only then swapped in, so a
+/// failed download or a half-written unpack can never leave the pack copy in pieces.
+pub fn refresh(pack_dir: &Path, repo_url: &str, branch: &str) -> Result<Refreshed, String> {
+    let version = latest_sha(repo_url, branch)?;
+    refresh_to(pack_dir, &version, &archive_url(repo_url, branch))
+}
+
+/// The pull half, with the commit and the archive URL already known: `refresh` gets both from
+/// GitHub, while the tests point them at a local server and a temp folder.
+fn refresh_to(pack_dir: &Path, version: &str, url: &str) -> Result<Refreshed, String> {
+    if version_of(pack_dir).as_deref() == Some(version) && pack_dir.is_dir() {
+        return Ok(Refreshed::Unchanged {
+            version: version.to_owned(),
+        });
+    }
+
     let archive = pack_dir.with_extension("download");
     download(url, &archive)?;
-
-    let version = fingerprint_file(&archive)?;
-    if version_of(pack_dir).as_deref() == Some(version.as_str()) && pack_dir.is_dir() {
-        fs::remove_file(&archive).ok();
-        return Ok(Refreshed::Unchanged { version });
-    }
 
     let staging = pack_dir.with_extension("staging");
     fs::remove_dir_all(&staging).ok();
@@ -352,11 +379,63 @@ pub fn refresh(pack_dir: &Path, url: &str) -> Result<Refreshed, String> {
     fs::rename(&root, pack_dir).map_err(|err| err.to_string())?;
     fs::remove_dir_all(&staging).ok();
 
-    write_version(pack_dir, &version)?;
-    Ok(Refreshed::Changed { version })
+    write_version(pack_dir, version)?;
+    Ok(Refreshed::Changed {
+        version: version.to_owned(),
+    })
 }
 
-/// The version of the pack copy on disk, if it has one.
+/// The SHA of the newest commit on `branch`, straight from GitHub's API.
+///
+/// This answers "is there anything to pull?" without downloading the pack: one small request, no
+/// token. The archive has no published hash, so the commit it was built from is what identifies a
+/// version of the pack.
+pub fn latest_sha(repo_url: &str, branch: &str) -> Result<String, String> {
+    let repo = github_repo(repo_url).ok_or_else(|| {
+        format!("{repo_url} is not a github.com repository, so its latest commit cannot be checked")
+    })?;
+    let url = format!("https://api.github.com/repos/{repo}/git/refs/heads/{branch}");
+
+    let mut response = agent(CHECK_TIMEOUT)
+        .get(&url)
+        .header("Accept", "application/vnd.github+json")
+        .call()
+        .map_err(|err| format!("could not ask GitHub for the latest commit: {err}"))?;
+    let text = response
+        .body_mut()
+        .read_to_string()
+        .map_err(|err| format!("could not read GitHub's answer: {err}"))?;
+
+    sha_from_json(&text).ok_or_else(|| format!("GitHub's answer had no commit sha: {text}"))
+}
+
+/// The `owner/repo` part of a GitHub URL, which is what the API needs. A repository anywhere else
+/// has no API to ask, so it comes back as `None` rather than being guessed at.
+fn github_repo(repo_url: &str) -> Option<String> {
+    let trimmed = repo_url.trim().trim_end_matches('/');
+    let trimmed = trimmed.strip_suffix(".git").unwrap_or(trimmed);
+    let rest = trimmed.strip_prefix("https://github.com/")?;
+
+    let parts: Vec<&str> = rest.split('/').filter(|part| !part.is_empty()).collect();
+    match parts.as_slice() {
+        [owner, repo] => Some(format!("{owner}/{repo}")),
+        _ => None,
+    }
+}
+
+/// The `sha` out of the small refs object GitHub returns. A hand parser is enough because the shape
+/// is fixed, and the value is only accepted when it is a full 40-character commit id.
+fn sha_from_json(json: &str) -> Option<String> {
+    let rest = &json[json.find("\"sha\"")? + "\"sha\"".len()..];
+    let rest = rest[rest.find(':')? + 1..].trim_start();
+    let rest = rest.strip_prefix('"')?;
+    let sha = &rest[..rest.find('"')?];
+
+    (sha.len() == 40 && sha.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        .then(|| sha.to_ascii_lowercase())
+}
+
+/// The commit SHA of the pack copy on disk, if it has one.
 pub fn version_of(pack_dir: &Path) -> Option<String> {
     let text = fs::read_to_string(pack_dir.join(VERSION_FILE)).ok()?;
     let trimmed = text.trim();
@@ -399,14 +478,6 @@ fn single_folder(dir: &Path) -> Option<PathBuf> {
         [only] if only.is_dir() => Some(only.clone()),
         _ => None,
     }
-}
-
-fn fingerprint_file(path: &Path) -> Result<String, String> {
-    let bytes = fs::read(path).map_err(|err| err.to_string())?;
-    let mut hasher = Sha256::new();
-    hasher.update(&bytes);
-
-    Ok(short_hex(&hasher.finalize()))
 }
 
 /// The first few bytes of a hash: plenty to tell one pack version from another by eye.
@@ -652,6 +723,109 @@ mod tests {
     }
 
     #[test]
+    fn github_repositories_are_read_from_their_url() {
+        assert_eq!(
+            github_repo("https://github.com/SavageDuck26/Ducks-Gauntlet-Mods.git").as_deref(),
+            Some("SavageDuck26/Ducks-Gauntlet-Mods")
+        );
+        assert_eq!(github_repo("https://github.com/O/R/").as_deref(), Some("O/R"));
+
+        // Anything the API cannot answer for is refused rather than guessed at.
+        assert_eq!(github_repo("https://example.invalid/O/R.git"), None);
+        assert_eq!(github_repo("https://github.com/O"), None);
+        assert_eq!(github_repo("https://github.com/O/R/tree/main"), None);
+    }
+
+    #[test]
+    fn the_commit_sha_is_read_out_of_the_refs_answer() {
+        let json = r#"{
+          "ref": "refs/heads/main",
+          "node_id": "MDM6UmVm",
+          "url": "https://api.github.com/repos/O/R/git/refs/heads/main",
+          "object": {
+            "sha": "3f8a0c9d2b7e6f5a4c3b2a190817263544556677",
+            "type": "commit",
+            "url": "https://api.github.com/repos/O/R/git/commits/3f8a0c9d2b7e6f5a4c3b2a190817263544556677"
+          }
+        }"#;
+
+        assert_eq!(
+            sha_from_json(json).as_deref(),
+            Some("3f8a0c9d2b7e6f5a4c3b2a190817263544556677")
+        );
+        assert_eq!(sha_from_json("{}"), None);
+        assert_eq!(sha_from_json(r#"{"sha": "not-a-commit"}"#), None);
+    }
+
+    /// The pull mechanism in a temp folder, with a local server standing in for GitHub: the first
+    /// pull unpacks and records the commit, the same commit costs no download, and a new commit
+    /// replaces the copy wholesale.
+    #[test]
+    fn a_new_commit_is_downloaded_and_swapped_in() {
+        let root = temp_root("ducksmm_pack_refresh");
+        let pack_dir = root.join("pack");
+        let first = root.join("first.tar.gz");
+        let second = root.join("second.tar.gz");
+
+        tarball(
+            &first,
+            &[("Pack-main/Mods/script.lua", "-- one")],
+            None,
+            None,
+        );
+        tarball(
+            &second,
+            &[("Pack-main/Mods/script.lua", "-- two")],
+            None,
+            None,
+        );
+
+        let server = crate::testserver::TestServer::serve(vec![
+            (
+                "/first.tar.gz",
+                fs::read(&first).expect("read the first archive"),
+            ),
+            (
+                "/second.tar.gz",
+                fs::read(&second).expect("read the second archive"),
+            ),
+        ]);
+        let first_url = format!("{}/first.tar.gz", server.base());
+        let second_url = format!("{}/second.tar.gz", server.base());
+
+        let Refreshed::Changed { version } =
+            refresh_to(&pack_dir, "commit-one", &first_url).expect("first pull")
+        else {
+            panic!("the first pull must install the pack");
+        };
+        assert_eq!(version, "commit-one");
+        assert_eq!(version_of(&pack_dir).as_deref(), Some("commit-one"));
+        assert_eq!(
+            fs::read_to_string(pack_dir.join("Mods").join("script.lua")).unwrap(),
+            "-- one"
+        );
+
+        // The same commit is already on disk, so the archive is not fetched again.
+        assert!(matches!(
+            refresh_to(&pack_dir, "commit-one", &first_url).expect("unchanged pull"),
+            Refreshed::Unchanged { .. }
+        ));
+
+        // A new commit replaces the copy, so the old file is gone rather than merged.
+        assert!(matches!(
+            refresh_to(&pack_dir, "commit-two", &second_url).expect("second pull"),
+            Refreshed::Changed { .. }
+        ));
+        assert_eq!(version_of(&pack_dir).as_deref(), Some("commit-two"));
+        assert_eq!(
+            fs::read_to_string(pack_dir.join("Mods").join("script.lua")).unwrap(),
+            "-- two"
+        );
+
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
     fn unpack_writes_files_and_folders() {
         let root = temp_root("ducksmm_pack_unpack");
         let archive = root.join("pack.tar.gz");
@@ -730,16 +904,17 @@ mod tests {
         let root = temp_root("ducksmm_live_pull");
         let pack_dir = root.join("pack");
         let installs = root.join("Ducks Mods");
-        let url = archive_url("https://github.com/SavageDuck26/Ducks-Gauntlet-Mods.git", "main");
+        let repo = "https://github.com/SavageDuck26/Ducks-Gauntlet-Mods.git";
 
-        // 1. Download and unpack, twice: the second is the same pack, so it costs one request.
-        match refresh(&pack_dir, &url).expect("first refresh") {
+        // 1. Check, download and unpack, twice: the second finds the same commit, so the archive is
+        //    not fetched or unpacked again.
+        match refresh(&pack_dir, repo, "main").expect("first refresh") {
             Refreshed::Changed { version } => println!("pack version {version}"),
             Refreshed::Unchanged { .. } => panic!("the first refresh cannot find nothing to do"),
         }
         assert!(
             matches!(
-                refresh(&pack_dir, &url).expect("second refresh"),
+                refresh(&pack_dir, repo, "main").expect("second refresh"),
                 Refreshed::Unchanged { .. }
             ),
             "an unchanged pack should not be unpacked again"

@@ -17,6 +17,7 @@ use eframe::egui::{self, Align, Color32, Layout, RichText};
 use crate::install;
 use crate::pack::{self, Tree};
 use crate::saver;
+use crate::selfupdate;
 
 const REPO_URL: &str = "https://github.com/SavageDuck26/Ducks-Gauntlet-Mods.git";
 const DEFAULT_BRANCH: &str = "main";
@@ -203,6 +204,10 @@ enum Action {
     OpenDocs,
     CheckUpdates,
     PullUpdate,
+    /// Look for a newer release of the manager itself.
+    CheckManagerUpdate,
+    /// Replace this executable with the newer release and restart.
+    UpdateManager,
     InstallSelected,
     MakeSavestate,
     /// Rewrite the chosen savestate with the mods that are installed right now.
@@ -229,6 +234,11 @@ pub struct ModManagerApp {
     filter: String,
     only_needing_action: bool,
     update: UpdateState,
+    /// What the last check said about the manager's own version. Separate from `update`, which is
+    /// the pack: this one replaces the executable rather than any mod.
+    manager: selfupdate::Status,
+    /// Set once a new manager has been started; the window only has to close.
+    restart: bool,
     /// What the player wants the next savestate called. Empty means "name it after the date".
     savestate_name: String,
     /// The savestates on disk, as of the last time we looked. Held here so the restore dropdown
@@ -265,13 +275,18 @@ impl ModManagerApp {
             filter: String::new(),
             only_needing_action: false,
             update: UpdateState::Unknown,
+            manager: selfupdate::Status::Unknown,
+            restart: false,
             savestate_name: String::new(),
             savestates: Vec::new(),
             restore_choice: String::new(),
             confirm_delete: None,
             doc: None,
         };
-        app.info("Ducks Mod Manager 1.0.0");
+        app.info(concat!(
+            "Ducks Mod Manager ",
+            env!("CARGO_PKG_VERSION")
+        ));
         app.info(format!("Pack: {REPO_URL} ({DEFAULT_BRANCH})"));
         app.info(format!(
             "Settings and savestates are kept in {APPDATA_DIR} beside the mods folder."
@@ -284,6 +299,13 @@ impl ModManagerApp {
         } else {
             app.info("Pick the folder where your mods live (Browse…) — no path is hardcoded.");
         }
+
+        // A previous update may have left the replaced executable beside this one: this process is
+        // the replacement, so that file is no longer in use and can go. The manager's own version
+        // is checked on every start, whether or not a mods folder has been picked yet.
+        selfupdate::cleanup();
+        app.check_manager_update();
+
         app
     }
 
@@ -508,6 +530,8 @@ impl ModManagerApp {
             Action::OpenDocs => self.open_docs(),
             Action::CheckUpdates => self.check_updates(),
             Action::PullUpdate => self.pull_update(),
+            Action::CheckManagerUpdate => self.check_manager_update(),
+            Action::UpdateManager => self.update_manager(),
             Action::InstallSelected => self.install_selected(),
             Action::MakeSavestate => self.make_savestate(),
             Action::OverwriteState => self.overwrite_savestate(),
@@ -738,18 +762,17 @@ impl ModManagerApp {
         }
     }
 
-    /// Downloads the pack if it has changed, then works out what that means for the installed mods.
-    /// The fetch is a plain HTTPS download of GitHub's archive — no git, no API, no token.
+    /// Checks GitHub for the branch's latest commit, then works out what that means for the
+    /// installed mods. The archive is only downloaded when the commit moved; no git, no token.
     fn check_updates(&mut self) {
         let Some(pack_dir) = self.pack_dir() else {
             self.warn("Pick the mods folder first.");
             return;
         };
 
-        let url = pack::archive_url(&self.settings.repo_url, &self.settings.branch);
-        match pack::refresh(&pack_dir, &url) {
+        match pack::refresh(&pack_dir, &self.settings.repo_url, &self.settings.branch) {
             Ok(pack::Refreshed::Unchanged { version }) => {
-                self.info(format!("Pack is up to date ({version})."));
+                self.info(format!("Pack is up to date ({}).", short_sha(&version)));
             }
             Ok(pack::Refreshed::Changed { version }) => {
                 self.info(format!("Pack updated to {version}."));
@@ -782,7 +805,7 @@ impl ModManagerApp {
             UpdateState::Behind { count: waiting }
         } else {
             UpdateState::UpToDate {
-                version: pack::version_of(pack_dir).unwrap_or_default(),
+                version: short_sha(&pack::version_of(pack_dir).unwrap_or_default()).to_owned(),
             }
         };
     }
@@ -802,12 +825,14 @@ impl ModManagerApp {
             self.info("Savestating before a pull is switched off in Advanced.");
         }
 
-        // 2. Make sure the pack copy is current. This is the same download as Check for updates, so
-        //    the button works on its own without pressing that first.
-        let url = pack::archive_url(&self.settings.repo_url, &self.settings.branch);
-        match pack::refresh(&pack_dir, &url) {
+        // 2. Make sure the pack copy is current. This is the same SHA check and download as Check
+        //    for updates, so the button works on its own without pressing that first.
+        match pack::refresh(&pack_dir, &self.settings.repo_url, &self.settings.branch) {
             Ok(pack::Refreshed::Unchanged { version }) => {
-                self.info(format!("Pack is already up to date ({version})."));
+                self.info(format!(
+                    "Pack is already up to date ({}).",
+                    short_sha(&version)
+                ));
             }
             Ok(pack::Refreshed::Changed { version }) => {
                 self.info(format!("Pack updated to {version}."));
@@ -847,6 +872,59 @@ impl ModManagerApp {
             self.info(format!(
                 "{missing} mod(s) are not installed and were left alone."
             ));
+        }
+    }
+
+    /// Asks the releases page whether the manager itself has moved on. This is the only request
+    /// the check makes: `version.txt` is a few bytes, and the binary is only fetched once that says
+    /// there is something newer.
+    fn check_manager_update(&mut self) {
+        match selfupdate::check() {
+            Ok(Some(release)) => {
+                self.info(format!(
+                    "Manager update available (release {}, this build is {}).",
+                    release.short(),
+                    selfupdate::CURRENT_VERSION
+                ));
+                self.manager = selfupdate::Status::Available { digest: release.digest };
+            }
+            Ok(None) => {
+                self.info(format!(
+                    "Manager is up to date ({}).",
+                    selfupdate::CURRENT_VERSION
+                ));
+                self.manager = selfupdate::Status::UpToDate;
+            }
+            Err(err) => {
+                self.warn(format!("Could not check for a manager update: {err}"));
+                self.manager = selfupdate::Status::Failed(err);
+            }
+        }
+    }
+
+    /// Downloads the newer manager and swaps it in. The replacement is started by
+    /// [`selfupdate::install`]; this window closes once that has happened, and the settings have
+    /// already been autosaved, so the new window opens exactly where this one was.
+    fn update_manager(&mut self) {
+        let selfupdate::Status::Available { digest } = self.manager.clone() else {
+            self.info("No manager update to install.");
+            return;
+        };
+
+        self.info("Installing the latest manager release…");
+        let release = selfupdate::Release { digest };
+        match selfupdate::install(&release) {
+            Ok(_) => {
+                self.info(format!(
+                    "Manager release {} is running; closing this window.",
+                    release.short()
+                ));
+                self.restart = true;
+            }
+            Err(err) => {
+                self.warn(format!("Could not update the manager: {err}"));
+                self.manager = selfupdate::Status::Failed(err);
+            }
         }
     }
 
@@ -1265,6 +1343,59 @@ impl ModManagerApp {
         });
 
         ui.add_space(2.0);
+        ui.horizontal(|ui| {
+            ui.label("Manager:");
+            ui.monospace(format!("v{}", selfupdate::CURRENT_VERSION));
+            match &self.manager {
+                selfupdate::Status::Unknown => {
+                    ui.weak("no check yet");
+                }
+                selfupdate::Status::UpToDate => {
+                    ui.colored_label(OK_COLOR, "up to date");
+                }
+                selfupdate::Status::Available { digest } => {
+                    let short = &digest[..digest.len().min(8)];
+                    ui.colored_label(WARN_COLOR, format!("update available (release {short})"));
+                }
+                selfupdate::Status::Failed(message) => {
+                    ui.colored_label(ERROR_COLOR, format!("check failed: {message}"));
+                }
+            }
+
+            // Replacing the executable is a separate act from pulling mods, so it keeps its own
+            // buttons instead of sharing the pack's row.
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                let can_update = matches!(self.manager, selfupdate::Status::Available { .. });
+                let update = ui
+                    .add_enabled_ui(can_update, |ui| {
+                        ui.add_sized(
+                            [BUTTON_WIDE, BUTTON_HEIGHT],
+                            egui::Button::new("Update manager"),
+                        )
+                    })
+                    .inner
+                    .on_hover_text(
+                        "Downloads the newest release, checks it against the SHA256 the release \
+                         publishes, then restarts the manager. A failed check never replaces a \
+                         working build.",
+                    );
+                if update.clicked() {
+                    *action = Some(Action::UpdateManager);
+                }
+
+                if ui
+                    .add_sized(
+                        [BUTTON_WIDE, BUTTON_HEIGHT],
+                        egui::Button::new("Check manager update"),
+                    )
+                    .clicked()
+                {
+                    *action = Some(Action::CheckManagerUpdate);
+                }
+            });
+        });
+
+        ui.add_space(2.0);
         egui::CollapsingHeader::new("Advanced")
             .default_open(false)
             .show(ui, |ui| {
@@ -1673,6 +1804,12 @@ impl eframe::App for ModManagerApp {
         if self.settings != self.saved {
             self.save_settings();
         }
+
+        // A new manager has been started; this window is only waiting to close. Settings were
+        // written above, so the replacement opens with the same folder and options.
+        if self.restart {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
     }
 }
 
@@ -1765,6 +1902,11 @@ fn read_bool(value: &str) -> bool {
         value.to_ascii_lowercase().as_str(),
         "true" | "yes" | "1" | "on"
     )
+}
+
+/// The first characters of a commit SHA: enough to tell one pack version from another by eye.
+fn short_sha(version: &str) -> &str {
+    &version[..version.len().min(8)]
 }
 
 /// Fixed-width header cell, sized to match the grid cells below it.
