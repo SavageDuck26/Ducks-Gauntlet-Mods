@@ -1,6 +1,6 @@
 
 local MOD_AUTHOR = "SavageDuck26"
-local MOD_VERSION = "3.5.0"
+local MOD_VERSION = "3.6.0"
 local MOD_DESCRIPTION = "Main mod menu overlay system"
 
 
@@ -90,7 +90,11 @@ local function hide_name_of(callback_name)
 end
 
 
--- List of mod namespaces that use the CONFIG pattern
+-- List of mod namespaces whose CONFIG is a player setting and should round-trip through
+-- mod_settings.json. A namespace left out is silently neither saved nor applied, and a name that
+-- matches no global does nothing, so this list has to be kept honest. Deliberately absent: the
+-- Performance*, PerformanceCulling and PerformancePause tunables, Duckmode's RenderDistance and
+-- CustomColosseums -- runtime knobs, a dev switch and a per-session level choice, not saved settings.
 local REGISTERED_MODS = {
     "Alliances",
     "Berserkers",
@@ -101,15 +105,18 @@ local REGISTERED_MODS = {
     "Knossos",
     "MeteorStorm",
     "MoreCrowns",
-    "PerformanceChanges",
     "RandomUrns",
     "StrongerEnemies",
     "Summoners",
     "TrialsUI",
 }
 
+-- Each mod's CONFIG as it shipped, captured by the first import before any saved value is merged
+-- in. The Default preset restores these. Captured lazily because the mods load after DucksUI and a
+-- mod's CONFIG does not exist until its own script has run.
+local mod_defaults = {}
+
 local current_overlay_widget = nil
-local current_descriptions_widget = nil
 
 -- Some of those panels rebuild themselves when a checkbox is clicked: the mod hides its widget and
 -- shows a fresh one, so a handler attached to the old widget dies with it. Watching for panels being
@@ -126,209 +133,6 @@ Mods.hook:set_object_path("GUI", "add_modal_widget",
         return result
     end, MOD_NAME .. ".GUI.add_modal_widget", MOD_NAME)
 
-
-local function create_descriptions_overlay_ui()
-    return {
-        css = "gui/default_css",
-        type = "container",
-        size = {"100%", "100%"},
-        children = {
-            -- Semi-transparent background
-            {
-                alpha = 0.7,
-                bg_img = "black",
-                id = "descriptions_overlay_background",
-                position = {"center", "top"},
-                size = {"100%", "100%"}
-            },
-            -- Main descriptions container
-            {
-                bg_img = "menu_standard_background_stone",
-                position = {"center", "center"},
-                size = {"100%", "100%"},
-                type = "container",
-                children = {
-                    -- Title
-                    {
-                        id = "descriptions_title",
-                        type = "label",
-                        text = "Mod Descriptions",
-                        font_size = 36,
-                        color = "cadetblue",
-                        position = {"center", "top + 30"},
-                        text_align = "center"
-                    },
-                    -- Description text
-                    {
-                        id = "descriptions_text",
-                        type = "label",
-                        text = [[SavageDuck26's Mod Descriptions:
-
-- AddUtility: This is a required mod for many other mods to work, it has bug fixes and utility functions for other mods.
-- Alliances: Mixes all enemy factions together.All players need the mod, or the game will crash for those without it.
-- Berserkers: Enemies can enter Berserker and Juggernaut states with increased speed and health regen.
-- CharacterSelect: Allows you to select different characters by opening the menu in game and pressing F3 or R2.
-- ChaosMode: Allows all enemies and stones to spawn in hallways, and increased the amount of spawns by a large margin.
-- Doppelgangers: Allows multiple of the same hero to be picked at once, played at once, and hotjoined with.
-- DucksAddons: Just fun little changes that do not affect gameplay in any real way.
-- DucksUI: You're looking at it. :D
-- ColosseumStones: Adds Colosseum Stones into Endless. (New stones coming?)
-- EndlessShop: Allows you to turn off certain shop items in Endless. Dead Broke doubles the cost of all shop items. (New items coming?)
-- GraveTrappers: Enemies and stones drop traps or have effects when killed. (Spikes, Spinner Traps, Lava Columns, etc.)
-- MeteorStorm: Lava levels have Meteors throughout them in Endless.
-- MoreCrowns: Allows Crowns to spawn on all enemies. Has a UI that shows the amounts picked up by each player.
-- NoCameraShake: Disables all camera shake effects.
-- NoDarkFloors: Disables dark floors in Endless mode.
-- NoGhosts: Replaces all ghost spawns with skeletons instead.
-- RandomUrns: Gold Urns, Goldrocks, Gold Crates, and other props if you choose, drop random items when destroyed.
-- SkullcoinScarcity: Makes earning skullcoins 4x harder.
-- Summoners: Caster enemies can summon additional enemies when they cast spells.
- 
-Trials Mods:
-- DeadMansHand: Removes the ability to revive using Skullcoins.
-- TheLaziestHero: Disables most inputs when not wearing the crown for the player with the mod.
- 
-Note: If any of these descriptions are still confusing, or you have any ideas for the mods, DM me on Discord: SavageDuck26. Other mods will be added here soon.
-Coming Soon(ish): ]],
--- No longer than the Note line!!!
-                        font_size = 32,
-                        color = "cadetblue",
-                        position = {"left + 5", "top - 450"},
-                        text_align = "center",
-                        size = {"100%", "98%"}
-                    },
-                    -- Back button
-                    {
-                        id = "descriptions_back_button",
-                        type = "button",
-                        text = "Back",
-                        font_size = 24,
-                        color = "white",
-                        position = {"center", "bottom - 30"},
-                        size = {200, 50},
-                        style = "button_standard",
-                        on = {
-                            clicked = function()
-                                hide_descriptions_overlay()
-                            end
-                        }
-                    }
-                }
-            }
-        }
-    }
-end
-local function create_documentation_overlay_ui()
-    return {
-        css = "gui/default_css",
-        type = "container",
-        size = {"100%", "100%"},
-        children = {
-            -- Semi-transparent background
-            {
-                alpha = 0.7,
-                bg_img = "black",
-                id = "documentation_overlay_background",
-                position = {"center", "top"},
-                size = {"100%", "100%"}
-            },
-            -- Main descriptions container
-            {
-                bg_img = "menu_standard_background_stone",
-                position = {"center", "center"},
-                size = {"100%", "100%"},
-                type = "container",
-                children = {
-                    -- Title
-                    {
-                        id = "documentation_title",
-                        type = "label",
-                        text = "Mod Documentation",
-                        font_size = 36,
-                        color = "cadetblue",
-                        position = {"center", "top + 30"},
-                        text_align = "center"
-                    },
-                    -- Description text
-                    {
-                        id = "documentation_text",
-                        type = "label",
-                        text = [[
-
-Clientside Mods: (This means for the mod to work properly, all players need to have the mod installed)
-- Alliances: This mod REQUIRES all players to have it, others will crash without it. It is still in development, so bugs may exist.
-- ColosseumStones: This works serverside, however players without the mod will crash if Poison Towers are present.
-- Doppelgangers: This mod does not require all players to have it, but will not function properly without it.
-- EndlessShop: Dead Broke only functions for the player using the mod.
-- MoreCrowns: The crown pickup UI will not appear for players without the mod.
- 
-Many thanks for reading this far. Any questions, concerns, etc. Lmk. ]],
-
-                        font_size = 32,
-                        color = "cadetblue",
-                        position = {"left + 5", "top - 450"},
-                        text_align = "center",
-                        size = {"100%", "98%"}
-                    },
-                    -- Back button
-                    {
-                        id = "documentation_back_button",
-                        type = "button",
-                        text = "Back",
-                        font_size = 24,
-                        color = "white",
-                        position = {"center", "bottom - 30"},
-                        size = {200, 50},
-                        style = "button_standard",
-                        on = {
-                            clicked = function()
-                                hide_documentation_overlay()
-                            end
-                        }
-                    }
-                }
-            }
-        }
-    }
-end
-
-function show_descriptions_overlay()
-    if current_descriptions_widget then
-        return
-    end
-    current_descriptions_widget = GUI:load_proto(create_descriptions_overlay_ui())
-    set_back_handler(current_descriptions_widget, hide_descriptions_overlay)
-    GUI:add_modal_widget(current_descriptions_widget, GUI.MAIN_CONTROLLER)
-end
-
-function hide_descriptions_overlay()
-    if not current_descriptions_widget then
-        return
-    end
-    GUI:remove_modal_widget(current_descriptions_widget)
-    GUI:destroy_widget(current_descriptions_widget)
-    current_descriptions_widget = nil
-end
-
-local current_documentation_widget = nil
-
-function show_documentation_overlay()
-    if current_documentation_widget then
-        return
-    end
-    current_documentation_widget = GUI:load_proto(create_documentation_overlay_ui())
-    set_back_handler(current_documentation_widget, hide_documentation_overlay)
-    GUI:add_modal_widget(current_documentation_widget, GUI.MAIN_CONTROLLER)
-end
-
-function hide_documentation_overlay()
-    if not current_documentation_widget then
-        return
-    end
-    GUI:remove_modal_widget(current_documentation_widget)
-    GUI:destroy_widget(current_documentation_widget)
-    current_documentation_widget = nil
-end
 
 -- Check if a mod's show_config is available by safely checking the global
 local function is_mod_config_available(global_name, func_name)
@@ -458,9 +262,9 @@ local function create_duck_overlay_ui()
         }
     })
     table.insert(main_children, {
-        id = "mod_descriptions",
+        id = "mod_presets",
         type = "button",
-        text = "Descriptions",
+        text = "Presets",
         font_size = 26,
         color = "cadetblue",
         position = {"top + 20", "left + 20"},
@@ -468,22 +272,7 @@ local function create_duck_overlay_ui()
         style = "button_standard",
         on = {
             clicked = function()
-                show_descriptions_overlay()
-            end
-        }
-    })
-    table.insert(main_children, {
-        id = "mod_documentation",
-        type = "button",
-        text = "Documentation",
-        font_size = 26,
-        color = "cadetblue",
-        position = {"top + 240", "left + 20"},
-        size = {225, 60},
-        style = "button_standard",
-        on = {
-            clicked = function()
-                show_documentation_overlay()
+                show_presets_overlay()
             end
         }
     })
@@ -553,6 +342,20 @@ function hide_duck_overlay()
 
     if DucksUI.save_all_settings then
         pcall(DucksUI.save_all_settings)
+    end
+
+    -- Let every mod re-derive whatever it builds from CONFIG. load_config() only runs inside the
+    -- import, and the import only happens when the panel opens, so a mod that rebuilds from CONFIG
+    -- (Alliances' pools, MeteorStorm's spawning) otherwise kept the settings it read before the
+    -- player changed them. Values are not re-read from the file here on purpose: the widgets wrote
+    -- them straight into CONFIG, and merging the saved snapshot back would clobber anything a mod
+    -- set at runtime.
+    for _, name in ipairs(REGISTERED_MODS) do
+        local mod = rawget(_G, name)
+
+        if type(mod) == "table" and type(mod.load_config) == "function" then
+            pcall(mod.load_config)
+        end
     end
 
     open_panel_hide = nil
@@ -680,28 +483,45 @@ end
 
 -- Deep merge saved settings into existing defaults
 -- Saved values override defaults, but missing keys keep their default values
+-- Merge saved values INTO the live CONFIG table instead of building a new one. The mod UIs capture
+-- row tables when they build their widgets (StrongerEnemies' slider closure writes ability.chance
+-- on the table get_ability_option handed it), so replacing CONFIG here orphaned those references:
+-- the click went into a dead table and neither the game nor the save ever saw it.
 local function deep_merge(defaults, saved)
     if type(defaults) ~= "table" or type(saved) ~= "table" then
         return saved
     end
-    local merged = {}
-    for k, v in pairs(defaults) do
-        if saved[k] ~= nil then
-            merged[k] = deep_merge(v, saved[k])
-        else
-            merged[k] = v
-        end
-    end
-    -- Also bring in any saved keys not in defaults (new settings added by user)
+
     for k, v in pairs(saved) do
-        if merged[k] == nil then
-            merged[k] = v
+        if type(v) == "table" and type(defaults[k]) == "table" then
+            deep_merge(defaults[k], v)
+        else
+            defaults[k] = v
         end
     end
-    return merged
+
+    return defaults
 end
 
-local function save_all_ui_player_settings()
+-- Presets are applied by replacing CONFIG, so the stored copy must not share tables with the live
+-- one. Every runtime reader (Alliances' pools, StrongerEnemies' ability rows) re-reads CONFIG.
+local function deep_copy(value)
+    if type(value) ~= "table" then
+        return value
+    end
+
+    local copy = {}
+
+    for k, v in pairs(value) do
+        copy[k] = deep_copy(v)
+    end
+
+    return copy
+end
+
+-- Snapshot of the live settings in the same shape mod_settings.json stores under "DucksUI".
+-- A preset save stores this, and a preset switch stores it as "Last" before overwriting.
+local function collect_all_ui_player_settings(verbose)
     local settings = {}
 
     -- EndlessShop still uses old pattern
@@ -715,11 +535,11 @@ local function save_all_ui_player_settings()
         if mod then
             if mod.CONFIG then
                 settings[name] = round_floats(mod.CONFIG)
-                print("[DucksUI] Collected settings for mod: " .. name)
-            else
+                if verbose then print("[DucksUI] Collected settings for mod: " .. name) end
+            elseif verbose then
                 print("[DucksUI] Mod has no CONFIG table (skipping): " .. name)
             end
-        else
+        elseif verbose then
             print("[DucksUI] Mod not loaded in global namespace (skipping): " .. name)
         end
     end
@@ -731,8 +551,12 @@ local function save_all_ui_player_settings()
     end
     
     -- Round ALL settings to thousandths place before encoding
-    settings = round_floats(settings)
-    
+    return round_floats(settings)
+end
+
+local function save_all_ui_player_settings()
+    local settings = collect_all_ui_player_settings(true)
+
     -- Persist through the shared framework settings store (mod_settings.json).
     local mod_settings = _G.Mod_settings
     if type(mod_settings) ~= "table" then
@@ -759,6 +583,37 @@ local function save_all_ui_player_settings()
     return settings
 end
 
+-- Apply a settings table in the shape mod_settings.json stores under "DucksUI".
+-- Import merges: the mod UIs capture row tables when they build, so replacing CONFIG there orphans
+-- those references. A preset switch replaces CONFIG outright, so keys a preset does not carry fall
+-- back to the mod's own defaults instead of leaking from the preset being left.
+local function apply_settings_table(settings, replace)
+    for _, name in ipairs(REGISTERED_MODS) do
+        local saved = settings[name]
+        if saved then
+            local mod = rawget(_G, name)
+            if mod then
+                if replace then
+                    mod.CONFIG = deep_copy(saved)
+                elseif mod.CONFIG and type(mod.CONFIG) == "table" then
+                    mod.CONFIG = deep_merge(mod.CONFIG, saved)
+                else
+                    mod.CONFIG = deep_copy(saved)
+                end
+                if mod.load_config then pcall(mod.load_config) end
+            end
+        end
+    end
+
+    -- EndlessShop still uses old pattern
+    if settings.endlessshop_config then
+        rawset(_G, "endlessshop_config", deep_copy(settings.endlessshop_config))
+        if rawget(_G, "update_endlessshop_from_config") then
+            pcall(rawget(_G, "update_endlessshop_from_config"))
+        end
+    end
+end
+
 local function import_all_ui_player_settings()
     local mod_settings = _G.Mod_settings
     if type(mod_settings) ~= "table" then
@@ -767,6 +622,19 @@ local function import_all_ui_player_settings()
             pcall(_G.moddata.load_mod_settings, mod_settings, nil)
         end
         _G.Mod_settings = mod_settings
+    end
+
+    -- Shipping defaults, captured before the merge below overwrites them. Only taken once per mod.
+    for _, name in ipairs(REGISTERED_MODS) do
+        local mod = rawget(_G, name)
+        if not mod_defaults[name] and type(mod) == "table" and type(mod.CONFIG) == "table" then
+            mod_defaults[name] = deep_copy(mod.CONFIG)
+        end
+    end
+
+    local endlessshop_config = rawget(_G, "endlessshop_config")
+    if not mod_defaults.endlessshop_config and type(endlessshop_config) == "table" then
+        mod_defaults.endlessshop_config = deep_copy(endlessshop_config)
     end
 
     local settings = mod_settings["DucksUI"]
@@ -778,32 +646,359 @@ local function import_all_ui_player_settings()
 
     print("[DucksUI] Loading settings from: " .. settings_file_path())
 
-    -- Apply CONFIG from settings to every registered mod that exists
-    -- Uses deep_merge so that missing nested tables keep their defaults
-    for _, name in ipairs(REGISTERED_MODS) do
-        local saved = settings[name]
-        if saved then
-            local mod = rawget(_G, name)
-            if mod then
-                if mod.CONFIG and type(mod.CONFIG) == "table" then
-                    mod.CONFIG = deep_merge(mod.CONFIG, saved)
-                else
-                    mod.CONFIG = saved
+    apply_settings_table(settings, false)
+
+    print("[DucksUI] Settings loaded successfully")
+end
+
+-- =================================================================================================
+-- Presets
+--
+-- Eight named slots plus two fixed entries. "Default" is the per-mod snapshot taken at import time
+-- and is never stored; "Last" holds whatever was live when a preset was last loaded, so a switch
+-- can be undone. Slots are a fixed-length array, so two presets may share a name and the JSON never
+-- has to encode a sparse table.
+-- =================================================================================================
+
+local PRESET_SLOT_COUNT = 8
+local PRESET_NAME_MAX_CHARS = 24
+
+local preset_slots = {}
+local preset_last = nil
+local presets_loaded = false
+-- Esc is both "stop editing" and this menu's Back button. The field consumes it first, so the back
+-- handler has to let that one press through.
+local swallow_next_back = false
+
+local function empty_preset_slot()
+    return { name = "", settings = {} }
+end
+
+local function slot_is_empty(slot)
+    return type(slot) ~= "table" or next(slot.settings or {}) == nil
+end
+
+local function preset_store()
+    local store = _G.Mod_settings
+
+    if type(store) ~= "table" then
+        store = {}
+        _G.Mod_settings = store
+
+        if _G.moddata and type(_G.moddata.load_mod_settings) == "function" then
+            pcall(_G.moddata.load_mod_settings, store, nil)
+        end
+    end
+
+    return store
+end
+
+local function load_presets()
+    if presets_loaded then
+        return
+    end
+
+    local saved = preset_store().DucksUI_presets
+    local saved_slots = type(saved) == "table" and type(saved.slots) == "table" and saved.slots or {}
+
+    preset_slots = {}
+
+    for i = 1, PRESET_SLOT_COUNT do
+        local slot = saved_slots[i]
+
+        if type(slot) == "table" and type(slot.settings) == "table" then
+            preset_slots[i] = { name = tostring(slot.name or ""), settings = slot.settings }
+        else
+            preset_slots[i] = empty_preset_slot()
+        end
+    end
+
+    local last = type(saved) == "table" and saved.last
+    preset_last = type(last) == "table" and type(last.settings) == "table" and { name = "Last", settings = last.settings } or nil
+
+    presets_loaded = true
+end
+
+-- Memory only: save_all_ui_player_settings writes the whole store when the menu closes, and this
+-- key rides along with it.
+local function store_presets()
+    preset_store().DucksUI_presets = { slots = preset_slots, last = preset_last }
+end
+
+-- A preset click is an explicit save: write the file now instead of waiting for the menu to close.
+local function persist_settings()
+    pcall(save_all_ui_player_settings)
+end
+
+local function preset_name_from_field(field, slot_index)
+    local name = (field:get_text() or ""):trimwhite()
+
+    if name == "" then
+        name = "Preset " .. slot_index
+    end
+
+    return name
+end
+
+local function load_preset_settings(settings, replace)
+    if type(settings) ~= "table" then
+        return
+    end
+
+    -- Whatever is live now becomes "Last" before it is overwritten.
+    preset_last = { name = "Last", settings = collect_all_ui_player_settings(false) }
+    apply_settings_table(settings, replace)
+    store_presets()
+    persist_settings()
+end
+
+local current_presets_widget = nil
+
+local function hide_presets_overlay()
+    if not current_presets_widget then
+        return
+    end
+
+    GUI:remove_modal_widget(current_presets_widget)
+    GUI:destroy_widget(current_presets_widget)
+    current_presets_widget = nil
+end
+
+local function create_presets_overlay_ui()
+    local children = {
+        {
+            id = "presets_title",
+            type = "label",
+            text = "Presets",
+            font_size = 36,
+            color = "cadetblue",
+            position = {"center", "top + 24"},
+            text_align = "center"
+        },
+        {
+            id = "presets_hint",
+            type = "label",
+            text = "Click a name to type it. Save stores the current settings, Load applies a preset.",
+            font_size = 20,
+            color = "cadetblue",
+            position = {"center", "top + 74"},
+            text_align = "center"
+        },
+    }
+
+    local row_y = 120
+    local row_step = 64
+
+    local function add_fixed_row(id, label_text, on_load)
+        table.insert(children, {
+            id = id .. "_label",
+            type = "label",
+            text = label_text,
+            font_size = 24,
+            color = "white",
+            position = {"center + -450", "top + " .. row_y},
+            size = {420, 44},
+            text_align = "left"
+        })
+        table.insert(children, {
+            id = id .. "_load",
+            type = "button",
+            text = "Load",
+            font_size = 22,
+            color = "white",
+            position = {"center + 180", "top + " .. row_y},
+            size = {160, 44},
+            style = "button_standard",
+            on = {
+                clicked = on_load
+            }
+        })
+
+        row_y = row_y + row_step
+    end
+
+    add_fixed_row("presets_default", "Default Settings", function()
+        load_preset_settings(mod_defaults, true)
+    end)
+
+    add_fixed_row("presets_last", "Last Used Settings", function()
+        if preset_last then
+            load_preset_settings(preset_last.settings, true)
+        end
+    end)
+
+    for i = 1, PRESET_SLOT_COUNT do
+        local slot = preset_slots[i]
+
+        table.insert(children, {
+            id = "preset_name_" .. i,
+            type = "textfield",
+            text = slot.name or "",
+            translated = false,
+            bg_img = "black",
+            font_size = 22,
+            color = "white",
+            position = {"center + -450", "top + " .. row_y},
+            size = {420, 44}
+        })
+        table.insert(children, {
+            id = "preset_save_" .. i,
+            type = "button",
+            text = "Save",
+            font_size = 22,
+            color = "white",
+            position = {"center", "top + " .. row_y},
+            size = {160, 44},
+            style = "button_standard",
+            on = {
+                clicked = function(self)
+                    local field = self.parent:get("preset_name_" .. i)
+
+                    if not field then
+                        return
+                    end
+
+                    local name = preset_name_from_field(field, i)
+                    field:set_text(name)
+                    preset_slots[i] = { name = name, settings = collect_all_ui_player_settings(false) }
+                    store_presets()
+                    persist_settings()
+                    GUI:unselect(field, _G.INPUT_USER_KEYBOARD_MOUSE)
                 end
-                if mod.load_config then pcall(mod.load_config) end
+            }
+        })
+
+        table.insert(children, {
+            id = "preset_load_" .. i,
+            type = "button",
+            text = "Load",
+            font_size = 22,
+            color = "white",
+            position = {"center + 180", "top + " .. row_y},
+            size = {160, 44},
+            style = "button_standard",
+            on = {
+                clicked = function(self)
+                    local field = self.parent:get("preset_name_" .. i)
+
+                    if field then
+                        GUI:unselect(field, _G.INPUT_USER_KEYBOARD_MOUSE)
+                    end
+
+                    if not slot_is_empty(preset_slots[i]) then
+                        load_preset_settings(preset_slots[i].settings, true)
+                    end
+                end
+            }
+        })
+        table.insert(children, {
+            id = "preset_delete_" .. i,
+            type = "button",
+            text = "Delete",
+            font_size = 22,
+            color = "white",
+            position = {"center + 360", "top + " .. row_y},
+            size = {160, 44},
+            style = "button_standard",
+            on = {
+                clicked = function(self)
+                    local field = self.parent:get("preset_name_" .. i)
+
+                    preset_slots[i] = empty_preset_slot()
+                    store_presets()
+                    persist_settings()
+
+                    if field then
+                        field:set_text("")
+                        GUI:unselect(field, _G.INPUT_USER_KEYBOARD_MOUSE)
+                    end
+                end
+            }
+        })
+
+        row_y = row_y + row_step
+    end
+
+    table.insert(children, {
+        id = "presets_back_button",
+        type = "button",
+        text = "Back",
+        font_size = 24,
+        color = "white",
+        position = {"center", "bottom - 30"},
+        size = {200, 50},
+        style = "button_standard",
+        on = {
+            clicked = function()
+                hide_presets_overlay()
+            end
+        }
+    })
+
+    return {
+        css = "gui/default_css",
+        type = "container",
+        size = {"100%", "100%"},
+        children = {
+            {
+                alpha = 0.7,
+                bg_img = "black",
+                id = "presets_overlay_background",
+                position = {"center", "top"},
+                size = {"100%", "100%"}
+            },
+            {
+                bg_img = "menu_standard_background_stone",
+                position = {"center", "center"},
+                size = {1400, 840},
+                type = "container",
+                children = children
+            }
+        }
+    }
+end
+
+function show_presets_overlay()
+    if current_presets_widget then
+        return
+    end
+
+    load_presets()
+
+    current_presets_widget = GUI:load_proto(create_presets_overlay_ui())
+
+    for i = 1, PRESET_SLOT_COUNT do
+        local field = current_presets_widget:get("preset_name_" .. i)
+
+        if field then
+            field:input_whitelist_add(_G.INPUT_USER_KEYBOARD_MOUSE)
+            field:set_max_length_chars(PRESET_NAME_MAX_CHARS)
+            field.on.text_canceled = function()
+                -- The field already ate the Esc; the page's Back handler must not close it too.
+                swallow_next_back = true
+                field:set_text(preset_slots[i].name or "")
             end
         end
     end
-    
-    -- EndlessShop still uses old pattern
-    if settings.endlessshop_config then
-        rawset(_G, "endlessshop_config", settings.endlessshop_config)
-        if rawget(_G, "update_endlessshop_from_config") then
-            pcall(rawget(_G, "update_endlessshop_from_config"))
+
+    -- Not set_back_handler: while a name is being edited, Esc belongs to the field only.
+    local function handle_back()
+        if swallow_next_back then
+            swallow_next_back = false
+            return false
         end
+
+        hide_presets_overlay()
+
+        return true
     end
-    
-    print("[DucksUI] Settings loaded successfully")
+
+    for _, input_name in ipairs({"back", "cancel"}) do
+        current_presets_widget:set_on_pressed(input_name, handle_back)
+        GUI:register_on_pressed(current_presets_widget, input_name)
+    end
+
+    GUI:add_modal_widget(current_presets_widget, GUI.MAIN_CONTROLLER)
 end
 
 -- Export functions on DucksUI namespace

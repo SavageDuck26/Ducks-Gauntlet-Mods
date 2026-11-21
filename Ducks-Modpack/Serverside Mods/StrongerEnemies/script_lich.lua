@@ -1,313 +1,118 @@
-
 local MOD_AUTHOR = "SavageDuck26"
 local MOD_DESCRIPTION = "Adds new abilities to the Lich"
 local MOD_NAME, log_message = Mods.init_mod()
 
--- Chance the Lich tops a nightmare cast with a storm bomb, and its normal-mode ghost cast.
--- Overridable from the mod UI.
-local function storm_bomb_chance()
-    return StrongerEnemies.get_chance("lich", "storm_bomb_chance", 0.12)
-end
+-- Every Lich ability can top itself with a storm bomb. Which abilities may do it, and how often,
+-- is one row each in the mod UI (StrongerEnemies.ABILITY_OPTIONS.lich).
+local function cast_storm_bomb(source, fallback_unit)
+    local caster_unit = source.caster_unit or fallback_unit
 
--- Chance the Lich drops a storm bomb when it dives in. Nightmare only: the ghost cast carries the
--- normal-mode bomb instead (see ghost_swarm at the bottom of this file).
-local function shadowdive_bomb_chance()
-    return StrongerEnemies.get_chance("lich", "shadowdive_bomb_chance", 1.00)
-end
+    -- Multiplayer safety: the caster can be gone by the time the callback runs.
+    if not caster_unit or not Unit.alive(caster_unit) then
+        return
+    end
 
--- No timed cut any more: the culler can pause the Lich mid-cast (pause_all_components), and a cut
--- fired at a paused caster cannot take effect -- its cleanup flow never runs and leaves the visuals
--- behind. The bomb now runs its full life; its projectile cleans itself up on completion like any
--- other cast (AbilityEventHandler.on_event_exit destroys surviving effect units).
-local function cast_storm_bomb(caster_unit, command)
+    if not EntityAux.owned(caster_unit) then
+        return
+    end
+
+    -- The engine's aim math can spin forever on a NaN direction, and a caster with no finite position
+    -- is one way to feed it one. No position, no cast.
+    if not StrongerEnemies.is_finite_position(Unit.world_position(caster_unit, 0)) then
+        StrongerEnemies.trace_skip("storm_bomb", caster_unit, "caster position not finite")
+
+        return
+    end
+
+    -- The command is queued, so the boxed target must be copied out now; an unboxed engine vector
+    -- is a recycled scratch buffer and reads back as nonsense when the ability finally runs.
+    local target_pos = StrongerEnemies.event_target_position(source)
+
+    local command = TempTableFactory:get_map(
+        "ability_name", "storm_bomb",
+        "settings_path", "equipment/wizard/weapon03",
+        "target_position", target_pos
+    )
+
     EntityAux.queue_command_master(caster_unit, "ability", "execute_ability", command)
 end
 
-Mods.hook:set_object(_G, "require", function(orig, path, ...)
+local function try_storm_bomb(ability_id, source, fallback_unit)
+    if StrongerEnemies.roll_ability("lich", ability_id) then
+        cast_storm_bomb(source, fallback_unit)
+    end
+end
+
+Mods.hook:set_object(_G, "require", function (orig, path, ...)
     local result = orig(path, ...)
 
     if path == "characters/lich/lich" and result and _G.is_host_ducks_mods then
+        -- Raise skeletons' on_enter is replaced as a whole, the same way the settings file leaves it.
         if result.abilities.raise_skeletons then
             result.abilities.raise_skeletons.on_enter = {
                 custom_callback = function (ability_component, unit, ability)
-                    if not StrongerEnemies.is_enabled("lich") or math.random() > storm_bomb_chance() then
-                        return
-                    end
-
-                    if not StrongerEnemies.is_nightmare() then
-                        return
-                    end
-
-                    local caster_unit = ability.caster_unit or unit
-                    
-                    -- Multiplayer safety: validate caster exists and is alive
-                    if not caster_unit or not Unit.alive(caster_unit) then
-                        return
-                    end
-
-                    if EntityAux.owned(caster_unit) then
-                        local target_pos = (ability.target_position_box and Vector3Aux.unbox(ability.target_position_box)) or ability.target_position
-                        local command = TempTableFactory:get_map(
-                            "ability_name", "storm_bomb",
-                            "settings_path", "equipment/wizard/weapon03",
-                            "target_position", target_pos
-                        )
-
-                        cast_storm_bomb(caster_unit, command)
-                    end
+                    try_storm_bomb("raise_skeletons", ability, unit)
                 end,
             }
         end
 
-        if result.abilities.shadowbeam and result.abilities.shadowbeam.events then
-            local ev = result.abilities.shadowbeam.events[2]
+        -- Event callbacks keep whatever the settings already pointed at (direct or inherited) and
+        -- add the storm bomb roll after it.
+        local function hook_event(ability_name, event_index, ability_id)
+            local ability = result.abilities[ability_name]
 
-            if ev then
-                local original = ev.on_enter_custom
-                local inherit = ev.inherit_from
+            if not ability or not ability.events then
+                return
+            end
 
-                ev.on_enter_custom = function(ability_event_handler, event)
-                    if original then
-                        pcall(original, ability_event_handler, event)
-                    else
-                        if inherit and result.abilities[inherit] and result.abilities[inherit].on_enter_custom then
-                            pcall(result.abilities[inherit].on_enter_custom, ability_event_handler, event)
-                        end
-                    end
+            local event = ability.events[event_index]
 
-                    if StrongerEnemies.is_enabled("lich") and math.random() < storm_bomb_chance() then
-                        if not StrongerEnemies.is_nightmare() then
-                            return
-                        end
+            if not event then
+                return
+            end
 
-                        local caster_unit = event.caster_unit
-                        
-                        -- Multiplayer safety: validate caster exists and is alive
-                        if not caster_unit or not Unit.alive(caster_unit) then
-                            return
-                        end
+            local original = event.on_enter_custom
+            local inherit = event.inherit_from
 
-                        if EntityAux.owned(caster_unit) then
-                            local target_pos = (event.target_position_box and Vector3Aux.unbox(event.target_position_box)) or event.target_position
-
-                            local command = TempTableFactory:get_map(
-                                "ability_name", "storm_bomb",
-                                "settings_path", "equipment/wizard/weapon03",
-                                "target_position", target_pos
-                            )
-
-                            cast_storm_bomb(caster_unit, command)
-                        end
-                    end
+            event.on_enter_custom = function (ability_event_handler, event_data)
+                if original then
+                    pcall(original, ability_event_handler, event_data)
+                elseif inherit and result.abilities[inherit] and result.abilities[inherit].on_enter_custom then
+                    pcall(result.abilities[inherit].on_enter_custom, ability_event_handler, event_data)
                 end
+
+                try_storm_bomb(ability_id, event_data)
             end
         end
 
-        if result.abilities.shadowbeam_left_to_right and result.abilities.shadowbeam_left_to_right.events then
-            local ev = result.abilities.shadowbeam_left_to_right.events[2]
+        hook_event("shadowbeam", 2, "shadowbeam")
+        hook_event("shadowbeam_left_to_right", 2, "shadowbeam_left_to_right")
+        hook_event("shadowbeam_right_to_left", 2, "shadowbeam_right_to_left")
+        hook_event("shadowdive_appear", 1, "shadowdive_appear")
 
-            if ev then
-                local original = ev.on_enter_custom
-                local inherit = ev.inherit_from
+        -- Whole-ability callbacks (ghost swarm, the on-spawn skeleton raise) use on_enter directly.
+        local function hook_ability_on_enter(ability_name, ability_id)
+            local ability = result.abilities[ability_name]
 
-                ev.on_enter_custom = function(ability_event_handler, event)
-                    if original then
-                        pcall(original, ability_event_handler, event)
-                    else
-                        if inherit and result.abilities[inherit] and result.abilities[inherit].on_enter_custom then
-                            pcall(result.abilities[inherit].on_enter_custom, ability_event_handler, event)
-                        end
-                    end
-
-                    if StrongerEnemies.is_enabled("lich") and math.random() < storm_bomb_chance() then
-                        if not StrongerEnemies.is_nightmare() then
-                            return
-                        end
-
-                        local caster_unit = event.caster_unit
-                        
-                        -- Multiplayer safety: validate caster exists and is alive
-                        if not caster_unit or not Unit.alive(caster_unit) then
-                            return
-                        end
-
-                        if EntityAux.owned(caster_unit) then
-                            local target_pos = (event.target_position_box and Vector3Aux.unbox(event.target_position_box)) or event.target_position
-
-                            local command = TempTableFactory:get_map(
-                                "ability_name", "storm_bomb",
-                                "settings_path", "equipment/wizard/weapon03",
-                                "target_position", target_pos
-                            )
-
-                            cast_storm_bomb(caster_unit, command)
-                        end
-                    end
-                end
+            if not ability then
+                return
             end
-        end
 
-        if result.abilities.shadowbeam_right_to_left and result.abilities.shadowbeam_right_to_left.events then
-            local ev = result.abilities.shadowbeam_right_to_left.events[2]
+            ability.on_enter = ability.on_enter or {}
 
-            if ev then
-                local original = ev.on_enter_custom
-                local inherit = ev.inherit_from
+            local original = ability.on_enter.custom_callback
 
-                ev.on_enter_custom = function(ability_event_handler, event)
-                    if original then
-                        pcall(original, ability_event_handler, event)
-                    else
-                        if inherit and result.abilities[inherit] and result.abilities[inherit].on_enter_custom then
-                            pcall(result.abilities[inherit].on_enter_custom, ability_event_handler, event)
-                        end
-                    end
-
-                    if StrongerEnemies.is_enabled("lich") and math.random() < storm_bomb_chance() then
-                        if not StrongerEnemies.is_nightmare() then
-                            return
-                        end
-
-                        local caster_unit = event.caster_unit
-                        
-                        -- Multiplayer safety: validate caster exists and is alive
-                        if not caster_unit or not Unit.alive(caster_unit) then
-                            return
-                        end
-
-                        if EntityAux.owned(caster_unit) then
-                            local target_pos = (event.target_position_box and Vector3Aux.unbox(event.target_position_box)) or event.target_position
-
-                            local command = TempTableFactory:get_map(
-                                "ability_name", "storm_bomb",
-                                "settings_path", "equipment/wizard/weapon03",
-                                "target_position", target_pos
-                            )
-
-                            cast_storm_bomb(caster_unit, command)
-                        end
-                    end
-                end
-            end
-        end
-
-        if result.abilities.shadowdive_appear and result.abilities.shadowdive_appear.events then
-            local ev = result.abilities.shadowdive_appear.events[1]
-
-            if ev then
-                local original = ev.on_enter_custom
-                local inherit = ev.inherit_from
-
-                ev.on_enter_custom = function(ability_event_handler, event)
-                    if original then
-                        pcall(original, ability_event_handler, event)
-                    else
-                        if inherit and result.abilities[inherit] and result.abilities[inherit].on_enter_custom then
-                            pcall(result.abilities[inherit].on_enter_custom, ability_event_handler, event)
-                        end
-                    end
-
-                    if StrongerEnemies.is_enabled("lich") and math.random() < shadowdive_bomb_chance() then
-                        if not StrongerEnemies.is_nightmare() then
-                            return
-                        end
-
-                        local caster_unit = event.caster_unit
-                        
-                        -- Multiplayer safety: validate caster exists and is alive
-                        if not caster_unit or not Unit.alive(caster_unit) then
-                            return
-                        end
-
-                        if EntityAux.owned(caster_unit) then
-                            local target_pos = (event.target_position_box and Vector3Aux.unbox(event.target_position_box)) or event.target_position
-
-                            local command = TempTableFactory:get_map(
-                                "ability_name", "storm_bomb",
-                                "settings_path", "equipment/wizard/weapon03",
-                                "target_position", target_pos
-                            )
-
-                            cast_storm_bomb(caster_unit, command)
-                        end
-                    end
-                end
-            end
-        end
-
-        if result.abilities.ghost_swarm then
-            result.abilities.ghost_swarm.on_enter = result.abilities.ghost_swarm.on_enter or {}
-            local original = result.abilities.ghost_swarm.on_enter.custom_callback
-
-            result.abilities.ghost_swarm.on_enter.custom_callback = function(component, unit, ability_inst)
+            ability.on_enter.custom_callback = function (component, unit, ability_inst)
                 if original then
                     pcall(original, component, unit, ability_inst)
                 end
 
-                if not StrongerEnemies.is_enabled("lich") or math.random() > storm_bomb_chance() then
-                    return
-                end
-
-                -- Normal mode only: the ghost cast carries the bomb here, nightmare's went to the dive.
-                if StrongerEnemies.is_nightmare() then
-                    return
-                end
-
-                local caster_unit = ability_inst.caster_unit or unit
-                
-                -- Multiplayer safety: validate caster exists and is alive
-                if not caster_unit or not Unit.alive(caster_unit) then
-                    return
-                end
-
-                if EntityAux.owned(caster_unit) then
-                    local target_pos = (ability_inst.target_position_box and Vector3Aux.unbox(ability_inst.target_position_box)) or ability_inst.target_position
-
-                    local command = TempTableFactory:get_map(
-                        "ability_name", "storm_bomb",
-                        "settings_path", "equipment/wizard/weapon03",
-                        "target_position", target_pos
-                    )
-
-                    cast_storm_bomb(caster_unit, command)
-                end
+                try_storm_bomb(ability_id, ability_inst, unit)
             end
         end
 
-        if result.abilities.on_spawn_raise_skeletons then
-            result.abilities.on_spawn_raise_skeletons.on_enter = result.abilities.on_spawn_raise_skeletons.on_enter or {}
-            local original = result.abilities.on_spawn_raise_skeletons.on_enter.custom_callback
-
-            result.abilities.on_spawn_raise_skeletons.on_enter.custom_callback = function(component, unit, ability_inst)
-                if original then
-                    pcall(original, component, unit, ability_inst)
-                end
-
-                if ability_inst.caster_unit then
-                    if not StrongerEnemies.is_enabled("lich") or math.random() > storm_bomb_chance() then
-                        return
-                    end
-
-                    if not StrongerEnemies.is_nightmare() then
-                        return
-                    end
-                end
-
-                local caster_unit = ability_inst.caster_unit or unit
-
-                if EntityAux.owned(caster_unit) then
-                    local target_pos = (ability_inst.target_position_box and Vector3Aux.unbox(ability_inst.target_position_box)) or ability_inst.target_position
-
-                    local command = TempTableFactory:get_map(
-                        "ability_name", "storm_bomb",
-                        "settings_path", "equipment/wizard/weapon03",
-                        "target_position", target_pos
-                    )
-
-                    cast_storm_bomb(caster_unit, command)
-                end
-            end
-        end
+        hook_ability_on_enter("ghost_swarm", "ghost_swarm")
+        hook_ability_on_enter("on_spawn_raise_skeletons", "on_spawn_raise_skeletons")
     end
 
     return result

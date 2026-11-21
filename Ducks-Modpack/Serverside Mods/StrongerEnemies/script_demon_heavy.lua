@@ -5,26 +5,8 @@ local MOD_DESCRIPTION = "Adds new abilities to the Eye Demon"
 local MOD_NAME, log_message = Mods.init_mod()
 local EYE_SORC_TARGET_RANGE = 45
 
--- Cast chances for the Eye Demon's extra attacks; overridable from the mod UI.
-local function super_nova_orb_chance()
-    return StrongerEnemies.get_chance("demon_heavy", "super_nova_orb_chance", 1.00)
-end
-
-local function confusing_glare_shield_chance()
-    return StrongerEnemies.get_chance("demon_heavy", "confusing_glare_shield_chance", 1.00)
-end
-
-local function demon_egg_orb_chance()
-    return StrongerEnemies.get_chance("demon_heavy", "demon_egg_orb_chance", 1.00)
-end
-
-local function super_nova_hover_chance()
-    return StrongerEnemies.get_chance("demon_heavy", "super_nova_hover_chance", 1.00)
-end
-
-local function super_nova_mortar_chance()
-    return StrongerEnemies.get_chance("demon_heavy", "super_nova_mortar_chance", 1.00)
-end
+-- The Eye Demon's extra attacks are one checkbox and chance row each in the mod UI
+-- (StrongerEnemies.ABILITY_OPTIONS.demon_heavy), rolled through StrongerEnemies.roll_ability().
 
 Mods.hook:set_object(_G, "require", function(orig, path, ...)
     local result = orig(path, ...)
@@ -37,7 +19,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                     return
                 end
 
-                if math.random() < super_nova_orb_chance() then
+                if StrongerEnemies.roll_ability("demon_heavy", "super_nova_start") then
                     local command = TempTableFactory:get_map(
                         "ability_name", "sinister_orb",
                         "settings_path", "equipment/wizard/weapon02"
@@ -45,7 +27,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                     EntityAux.queue_command_master(unit, "ability", "execute_ability", command)
                 end
 
-                if StrongerEnemies.is_enabled("demon_heavy") and StrongerEnemies.is_nightmare() and math.random() < super_nova_hover_chance() then
+                if StrongerEnemies.roll_ability("demon_heavy", "super_nova_start_hover") then
                     local command = TempTableFactory:get_map(
                         "ability_name", "sinister_orb_hover",
                         "settings_path", "equipment/wizard/weapon02"
@@ -60,13 +42,19 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 local owner = event.owner_unit
                 local ability = event.parent_ability
 
+                -- Multiplayer safety: the nova outlives the demon, and Unit.world_position on a unit
+                -- that is already gone returns INF. Never roll or store anything for a dead owner.
+                if not owner or not EntityAux.owned(owner) or not Unit.alive(owner) then
+                    return
+                end
+
                 -- One roll for the whole nova, not one per bolt. super_nova_start and super_nova_end are
                 -- separate abilities, so the start rolls once and writes the result to the boss; every
                 -- later bolt, including the end's, reuses it. The start rolls first every nova, which
                 -- refreshes the stored value.
                 if ability.mortar_rolled == nil then
                     if event.ability_name == "super_nova_start" then
-                        ability.mortar_rolled = StrongerEnemies.is_enabled("demon_heavy") and StrongerEnemies.is_nightmare() and math.random() < super_nova_mortar_chance()
+                        ability.mortar_rolled = StrongerEnemies.roll_ability("demon_heavy", "super_nova_event_data")
 
                         Unit.set_data(owner, "nova_mortars", ability.mortar_rolled)
                     else
@@ -75,10 +63,6 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
                 end
 
                 if ability.mortar_rolled then
-                    if not EntityAux.owned(owner) then
-                        return
-                    end
-
                     local angle = event.settings and event.settings.angle
                     local distance = event.settings and event.settings.max_distance or 15
 
@@ -101,6 +85,13 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
 
                     local target_pos = origin + dir * distance
 
+                    -- The mortar is a queued ability cast: an INF/NaN target spins the engine.
+                    if not StrongerEnemies.is_finite_position(target_pos) then
+                        log_message("WARN", "Skipped a nova mortar: the aim position is not finite")
+
+                        return
+                    end
+
                     local command = TempTableFactory:get_map(
                         "ability_name", "mortar_shot",
                         "settings_path", "equipment/elf/weapon03",
@@ -115,7 +106,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         if result.abilities.confusing_glare then
             result.abilities.confusing_glare.on_enter = {
                 custom_callback = function (ability_component, unit, ability)
-                    if StrongerEnemies.is_enabled("demon_heavy") and EntityAux.owned(unit) and math.random() < confusing_glare_shield_chance() then
+                    if EntityAux.owned(unit) and StrongerEnemies.roll_ability("demon_heavy", "confusing_glare") then
                         local predicates = {
                             closure(StateAux.predicate_faction, FactionComponent.faction_mask("evil")),
                             function (component, caster, context, target_unit)
@@ -146,7 +137,7 @@ Mods.hook:set_object(_G, "require", function(orig, path, ...)
         if result.abilities.demon_egg then
             result.abilities.demon_egg.on_enter = {
                 custom_callback = function (ability_component, unit, ability)
-                    if StrongerEnemies.is_enabled("demon_heavy") and EntityAux.owned(unit) and math.random() < demon_egg_orb_chance() then
+                    if EntityAux.owned(unit) and StrongerEnemies.roll_ability("demon_heavy", "demon_egg") then
                         local command = TempTableFactory:get_map(
                             "ability_name", "sinister_orb",
                             "settings_path", "equipment/wizard/weapon02"

@@ -50,6 +50,7 @@ If a guest uses F3, Dead Man's Mod works correctly, but the run does not end whe
 - Ability to save mod settings layouts in-game. (settings.json)
 - Option to turn all pots on a map into Gold Pots.
 - Alliance mod option to keep the same enemy types throughout all realms.
+- Live kill counter for each player under the hud. (Requested by AzazeL)
 
 
 ## Self-Suggestions:
